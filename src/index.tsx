@@ -965,43 +965,51 @@ function updateRadarChart(ai, human) {
     data: {
       labels: ['수치 데이터', '출처/기간', '두괄식 구조', '대상 특정', '변화/가치', '공감 묘사'],
       datasets: [{
-        label: 'AI 점수 요소',
+        label: '종합 점수',
         data: [
           ((ai.numbers||0)/40)*100,
           ((ai.source||0)/30)*100,
           ((ai.structure||0)/30)*100,
-          0, 0, 0
-        ],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59,130,246,0.15)',
-        borderWidth: 2,
-        pointBackgroundColor: '#3b82f6'
-      }, {
-        label: '인간 점수 요소',
-        data: [
-          0, 0, 0,
           ((human.target||0)/30)*100,
           ((human.value||0)/40)*100,
           ((human.empathy||0)/30)*100
         ],
-        borderColor: '#F97316',
-        backgroundColor: 'rgba(249,115,22,0.15)',
+        borderColor: '#a855f7',
+        backgroundColor: 'rgba(168,85,247,0.15)',
         borderWidth: 2,
-        pointBackgroundColor: '#F97316'
+        pointBackgroundColor: function(context) {
+          const i = context.dataIndex;
+          return i < 3 ? '#3b82f6' : '#F97316';
+        },
+        pointRadius: 5,
+        pointHoverRadius: 7
       }]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: { display: true, position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } }
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const labels = ['수치(AI)', '출처(AI)', '구조(AI)', '대상(Human)', '가치(Human)', '공감(Human)'];
+              return labels[context.dataIndex] + ': ' + Math.round(context.raw) + '%';
+            }
+          }
+        }
       },
       scales: {
         r: {
           beginAtZero: true, max: 100,
-          grid: { color: 'rgba(148,163,184,0.1)' },
-          angleLines: { color: 'rgba(148,163,184,0.1)' },
-          pointLabels: { color: '#94a3b8', font: { size: 10 } },
-          ticks: { display: false }
+          grid: { color: 'rgba(148,163,184,0.15)' },
+          angleLines: { color: 'rgba(148,163,184,0.15)' },
+          pointLabels: {
+            color: function(context) {
+              return context.index < 3 ? '#60a5fa' : '#fb923c';
+            },
+            font: { size: 11, weight: '500' }
+          },
+          ticks: { display: false, stepSize: 25 }
         }
       }
     }
