@@ -1,0 +1,725 @@
+
+// ==================== Frontend ====================
+
+app.get('/', (c) => {
+  return c.html(getMainHTML())
+})
+
+function getMainHTML(): string {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WriteScope - 이중 글쓰기 어시스턴트</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{colors:{
+  navy:{800:'#1E293B',900:'#0f172a',950:'#080d19'},
+  accent:{400:'#fb923c',500:'#F97316',600:'#ea580c'}
+}}}}
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&family=Outfit:wght@400;600;700;800;900&display=swap');
+*{font-family:'Noto Sans KR',sans-serif;margin:0;box-sizing:border-box}
+body{background:#080d19;color:#e2e8f0;overflow-x:hidden}
+.font-display{font-family:'Outfit','Noto Sans KR',sans-serif}
+
+/* Glass */
+.glass{background:rgba(15,23,42,0.7);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06)}
+.glass-light{background:rgba(30,41,59,0.5);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.05)}
+
+/* Gradient accents */
+.grad-orange{background:linear-gradient(135deg,#F97316,#f59e0b)}
+.grad-blue{background:linear-gradient(135deg,#3b82f6,#6366f1)}
+.grad-mixed{background:linear-gradient(135deg,#F97316 0%,#ec4899 50%,#6366f1 100%)}
+.grad-dark{background:linear-gradient(180deg,#0f172a 0%,#080d19 100%)}
+
+/* Glow effects */
+.glow-o{box-shadow:0 0 30px rgba(249,115,22,0.25),0 0 60px rgba(249,115,22,0.1)}
+.glow-b{box-shadow:0 0 30px rgba(59,130,246,0.25),0 0 60px rgba(59,130,246,0.1)}
+.text-glow-o{text-shadow:0 0 20px rgba(249,115,22,0.5)}
+.text-glow-b{text-shadow:0 0 20px rgba(59,130,246,0.5)}
+
+/* Tabs */
+.tab-active{background:linear-gradient(135deg,#F97316,#ea580c);color:#fff;box-shadow:0 4px 20px rgba(249,115,22,0.4);transform:translateY(-1px)}
+.tab-inactive{background:rgba(30,41,59,0.4);color:#64748b;border:1px solid rgba(255,255,255,0.05)}
+.tab-inactive:hover{color:#cbd5e1;background:rgba(51,65,85,0.5)}
+
+/* Score gauge */
+.gauge-track{fill:none;stroke:#1e293b;stroke-width:8}
+.gauge-fill{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1.5s cubic-bezier(0.4,0,0.2,1)}
+.gauge-ai{stroke:url(#gradBlue)}
+.gauge-human{stroke:url(#gradOrange)}
+
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes countUp{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes pulse-ring{0%{transform:scale(0.95);opacity:1}70%{transform:scale(1.1);opacity:0}100%{transform:scale(0.95);opacity:0}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.fade-up{animation:fadeUp 0.5s ease-out both}
+.slide-in{animation:slideIn 0.4s ease-out both}
+.count-up{animation:countUp 0.6s cubic-bezier(0.34,1.56,0.64,1) both}
+.shimmer{background:linear-gradient(90deg,transparent,rgba(249,115,22,0.1),transparent);background-size:200% 100%;animation:shimmer 2s infinite}
+.float-anim{animation:float 3s ease-in-out infinite}
+
+/* Checklist cards */
+.check-card{transition:all 0.3s ease}
+.check-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,0.3)}
+.check-pass{border-left:3px solid #22c55e;background:rgba(34,197,94,0.05)}
+.check-fail{border-left:3px solid #ef4444;background:rgba(239,68,68,0.05)}
+
+/* Progress bar */
+.progress-bg{background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;height:6px}
+.progress-fill{height:100%;border-radius:99px;transition:width 1.5s cubic-bezier(0.4,0,0.2,1)}
+
+/* Before/After */
+.diff-add{background:rgba(34,197,94,0.12);border-left:3px solid #22c55e;padding:12px 16px;border-radius:0 8px 8px 0}
+.diff-remove{background:rgba(239,68,68,0.08);border-left:3px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0;text-decoration:line-through;opacity:0.6}
+
+/* Custom scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#334155;border-radius:99px}
+
+textarea:focus,select:focus,input:focus{outline:none;box-shadow:0 0 0 2px rgba(249,115,22,0.4)}
+.line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* Loading skeleton */
+.skeleton{background:linear-gradient(90deg,rgba(30,41,59,0.5) 25%,rgba(51,65,85,0.5) 50%,rgba(30,41,59,0.5) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- SVG Gradients (for gauges) -->
+<svg width="0" height="0"><defs>
+<linearGradient id="gradBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+  <stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#6366f1"/>
+</linearGradient>
+<linearGradient id="gradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+  <stop offset="0%" stop-color="#F97316"/><stop offset="100%" stop-color="#f59e0b"/>
+</linearGradient>
+<linearGradient id="gradMixed" x1="0%" y1="0%" x2="100%" y2="100%">
+  <stop offset="0%" stop-color="#F97316"/><stop offset="50%" stop-color="#ec4899"/><stop offset="100%" stop-color="#6366f1"/>
+</linearGradient>
+</defs></svg>
+
+<!-- ========== LOGIN MODAL ========== -->
+<div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center" style="background:radial-gradient(ellipse at center,rgba(249,115,22,0.08) 0%,#080d19 70%)">
+  <div class="text-center fade-up">
+    <!-- Logo -->
+    <div class="w-20 h-20 mx-auto mb-6 rounded-2xl grad-orange flex items-center justify-center glow-o float-anim" style="box-shadow:0 0 40px rgba(249,115,22,0.3)">
+      <i class="fas fa-feather-alt text-3xl text-white"></i>
+    </div>
+    <h1 class="font-display text-4xl font-black text-white mb-2 tracking-tight">Write<span class="text-transparent bg-clip-text grad-orange" style="background:linear-gradient(135deg,#F97316,#f59e0b);-webkit-background-clip:text">Scope</span></h1>
+    <p class="text-gray-400 mb-1 text-sm">AI와 인간, 두 시선으로 글을 완성하다</p>
+    <p class="text-gray-600 mb-8 text-xs">성·기·대·변 공식 기반 이중 글쓰기 진단</p>
+
+    <div class="glass rounded-2xl p-6 w-80 mx-auto">
+      <input id="nicknameInput" type="text" maxlength="20" placeholder="닉네임을 입력하세요"
+             class="w-full px-4 py-3 bg-navy-950 border border-gray-800 rounded-xl text-white placeholder-gray-600 text-center text-base mb-3 transition-all"
+             onkeypress="if(event.key==='Enter')enterApp()">
+      <button onclick="enterApp()" class="w-full py-3 grad-orange text-white font-semibold rounded-xl glow-o transition-all hover:brightness-110 active:scale-[0.98]">
+        시작하기 <i class="fas fa-arrow-right ml-2"></i>
+      </button>
+    </div>
+    <p class="text-gray-700 text-[10px] mt-6">Powered by Gemini AI &middot; Cloudflare Workers</p>
+  </div>
+</div>
+
+<!-- ========== MAIN APP ========== -->
+<div id="mainApp" class="hidden">
+
+<!-- Header -->
+<header class="glass sticky top-0 z-40" style="border-bottom:1px solid rgba(255,255,255,0.04)">
+  <div class="max-w-[1400px] mx-auto px-5 py-2.5 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 grad-orange rounded-lg flex items-center justify-center">
+        <i class="fas fa-feather-alt text-white text-xs"></i>
+      </div>
+      <span class="font-display font-bold text-white text-base">Write<span class="text-accent-500">Scope</span></span>
+    </div>
+    <div class="flex items-center gap-4">
+      <div id="headerKeyStatus" class="hidden items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span class="text-green-400">AI Ready</span></div>
+      <span class="text-sm text-gray-500"><i class="fas fa-user-circle mr-1"></i><span id="displayNickname" class="text-gray-300"></span></span>
+      <button onclick="logout()" class="text-gray-600 hover:text-gray-400 transition-colors text-xs"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </div>
+</header>
+
+<!-- Tabs -->
+<div class="max-w-[1400px] mx-auto px-5 mt-4">
+  <div class="flex gap-2">
+    <button onclick="switchTab('write')" id="tab-write" class="tab-active px-5 py-2 rounded-xl text-sm font-medium transition-all"><i class="fas fa-magic mr-1.5"></i>분석</button>
+    <button onclick="switchTab('history')" id="tab-history" class="tab-inactive px-5 py-2 rounded-xl text-sm font-medium transition-all"><i class="fas fa-clock-rotate-left mr-1.5"></i>이력</button>
+    <button onclick="switchTab('stats')" id="tab-stats" class="tab-inactive px-5 py-2 rounded-xl text-sm font-medium transition-all"><i class="fas fa-chart-line mr-1.5"></i>통계</button>
+    <button onclick="switchTab('settings')" id="tab-settings" class="tab-inactive px-5 py-2 rounded-xl text-sm font-medium transition-all"><i class="fas fa-gear mr-1.5"></i>설정</button>
+  </div>
+</div>
+
+<!-- Content -->
+<main class="max-w-[1400px] mx-auto px-5 py-4 pb-20">
+
+<!-- ===== TAB: WRITE ===== -->
+<div id="panel-write" class="fade-up">
+  <!-- Input Row -->
+  <div class="glass rounded-2xl p-5 mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-white font-semibold text-sm"><i class="fas fa-pen-fancy mr-2 text-accent-500"></i>원문 입력</h3>
+      <div class="flex items-center gap-3">
+        <select id="categorySelect" class="px-3 py-1.5 bg-navy-950 border border-gray-800 rounded-lg text-xs text-gray-300 transition-all">
+          <option value="">카테고리 선택</option>
+        </select>
+        <select id="toneSelect" class="px-3 py-1.5 bg-navy-950 border border-gray-800 rounded-lg text-xs text-gray-300 transition-all">
+          <option value="">어조: 자동</option>
+          <option value="전문적">전문적</option><option value="친근한">친근한</option><option value="설득적">설득적</option><option value="감성적">감성적</option><option value="유머러스">유머러스</option>
+        </select>
+      </div>
+    </div>
+    <div class="relative">
+      <textarea id="inputText" rows="6" maxlength="3000" placeholder="블로그 초안을 입력하세요. WriteScope가 성·기·대·변 공식으로 AI + 인간 관점에서 동시에 진단합니다. (최대 3,000자)"
+                class="w-full px-4 py-3 bg-navy-950 border border-gray-800 rounded-xl text-gray-200 text-sm leading-relaxed resize-none transition-all"></textarea>
+      <div class="absolute bottom-2.5 right-3 text-[11px] text-gray-600"><span id="charCount">0</span> / 3,000</div>
+    </div>
+    <div class="flex items-center gap-3 mt-3">
+      <button onclick="analyzeText()" id="analyzeBtn"
+              class="flex-1 py-3 grad-orange text-white font-semibold rounded-xl glow-o transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
+        <i class="fas fa-bolt mr-2"></i>이중 글쓰기 분석
+      </button>
+      <div id="apiKeyWarning" class="hidden text-xs text-yellow-500"><i class="fas fa-exclamation-triangle mr-1"></i>API 키를 먼저 등록하세요 &rarr; <a href="#" onclick="switchTab('settings');return false" class="underline text-accent-500">설정</a></div>
+    </div>
+  </div>
+
+  <!-- Result Area -->
+  <div id="resultPlaceholder" class="glass rounded-2xl p-10 text-center">
+    <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-800/50 flex items-center justify-center">
+      <i class="fas fa-wand-magic-sparkles text-2xl text-gray-600"></i>
+    </div>
+    <p class="text-gray-500 text-sm mb-1">글을 입력하고 분석 버튼을 누르세요</p>
+    <p class="text-gray-700 text-xs">성·기·대·변 공식으로 AI 검색 최적화 + 인간 공감 점수를 동시 진단합니다</p>
+  </div>
+
+  <!-- Loading -->
+  <div id="resultLoading" class="hidden glass rounded-2xl p-10">
+    <div class="flex flex-col items-center justify-center">
+      <div class="relative w-20 h-20 mb-5">
+        <div class="absolute inset-0 rounded-full border-4 border-accent-500/20"></div>
+        <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-accent-500 animate-spin"></div>
+        <div class="absolute inset-2 rounded-full border-4 border-transparent border-b-blue-500 animate-spin" style="animation-direction:reverse;animation-duration:1.5s"></div>
+        <div class="absolute inset-0 flex items-center justify-center"><i class="fas fa-feather-alt text-accent-500"></i></div>
+      </div>
+      <p class="text-gray-300 text-sm font-medium mb-1">AI가 글을 분석하고 있습니다</p>
+      <p class="text-gray-600 text-xs" id="loadingSubtext">성·기·대·변 요소를 진단하는 중...</p>
+    </div>
+  </div>
+
+  <!-- ===== RESULT ===== -->
+  <div id="resultContent" class="hidden">
+
+    <!-- Score Hero Section -->
+    <div class="glass rounded-2xl p-6 mb-4 overflow-hidden relative">
+      <div class="absolute top-0 right-0 w-60 h-60 bg-accent-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+      <div class="absolute bottom-0 left-0 w-60 h-60 bg-blue-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+
+      <!-- Grade Badge -->
+      <div class="text-center mb-5 relative">
+        <div id="gradeBadge" class="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold mb-2 count-up" style="animation-delay:0.3s"></div>
+        <p id="gradeComment" class="text-gray-400 text-xs"></p>
+      </div>
+
+      <!-- Dual Score Gauges -->
+      <div class="grid grid-cols-2 gap-8 max-w-xl mx-auto mb-6">
+        <!-- AI Score -->
+        <div class="text-center">
+          <div class="relative w-40 h-40 mx-auto">
+            <svg class="w-40 h-40 -rotate-90" viewBox="0 0 160 160">
+              <circle class="gauge-track" cx="80" cy="80" r="68"/>
+              <circle id="aiRing" class="gauge-fill gauge-ai" cx="80" cy="80" r="68"
+                      stroke-dasharray="427.26" stroke-dashoffset="427.26"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <div class="text-[11px] text-blue-400 font-medium mb-1"><i class="fas fa-robot mr-1"></i>AI 점수</div>
+              <div id="aiScoreNum" class="font-display text-4xl font-black text-white text-glow-b">0</div>
+            </div>
+          </div>
+          <div class="mt-3 space-y-2 px-2">
+            <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">수치 데이터</span><span id="dNum" class="text-blue-400 font-medium">0/40</span></div><div class="progress-bg"><div id="pNum" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1)"></div></div></div>
+            <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">출처/기간</span><span id="dSrc" class="text-blue-400 font-medium">0/30</span></div><div class="progress-bg"><div id="pSrc" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1)"></div></div></div>
+            <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">두괄식 구조</span><span id="dStr" class="text-blue-400 font-medium">0/30</span></div><div class="progress-bg"><div id="pStr" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1)"></div></div></div>
+          </div>
+        </div>
+        <!-- Human Score -->
+        <div class="text-center">
+          <div class="relative w-40 h-40 mx-auto">
+            <svg class="w-40 h-40 -rotate-90" viewBox="0 0 160 160">
+              <circle class="gauge-track" cx="80" cy="80" r="68"/>
+              <circle id="humanRing" class="gauge-fill gauge-human" cx="80" cy="80" r="68"
+                      stroke-dasharray="427.26" stroke-dashoffset="427.26"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <div class="text-[11px] text-accent-400 font-medium mb-1"><i class="fas fa-heart mr-1"></i>인간 점수</div>
+              <div id="humanScoreNum" class="font-display text-4xl font-black text-white text-glow-o">0</div>
+            </div>
+          </div>
+          <div class="mt-3 space-y-2 px-2">
+            <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">대상 특정</span><span id="dTgt" class="text-accent-400 font-medium">0/30</span></div><div class="progress-bg"><div id="pTgt" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#F97316,#f59e0b)"></div></div></div>
+            <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">변화/가치</span><span id="dVal" class="text-accent-400 font-medium">0/40</span></div><div class="progress-bg"><div id="pVal" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#F97316,#f59e0b)"></div></div></div>
+            <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">공감 묘사</span><span id="dEmp" class="text-accent-400 font-medium">0/30</span></div><div class="progress-bg"><div id="pEmp" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#F97316,#f59e0b)"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radar Chart -->
+      <div class="max-w-md mx-auto">
+        <canvas id="radarChart" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- Checklist + Feedback Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <!-- Checklist -->
+      <div class="glass rounded-2xl p-5">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-7 h-7 grad-orange rounded-lg flex items-center justify-center"><i class="fas fa-clipboard-check text-white text-xs"></i></div>
+          <h3 class="text-white font-semibold text-sm">성·기·대·변 체크리스트</h3>
+          <span id="checkScore" class="ml-auto text-xs font-bold px-2.5 py-0.5 rounded-full"></span>
+        </div>
+        <div id="checklistArea" class="space-y-2"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="glass rounded-2xl p-5">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-7 h-7 grad-blue rounded-lg flex items-center justify-center"><i class="fas fa-lightbulb text-white text-xs"></i></div>
+          <h3 class="text-white font-semibold text-sm">AI 개선 제안</h3>
+        </div>
+        <ul id="feedbackList" class="space-y-2"></ul>
+      </div>
+    </div>
+
+    <!-- Before / After Comparison -->
+    <div class="glass rounded-2xl p-5 mb-4">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 grad-mixed rounded-lg flex items-center justify-center"><i class="fas fa-arrow-right-arrow-left text-white text-xs"></i></div>
+          <h3 class="text-white font-semibold text-sm">비포 / 애프터 비교</h3>
+        </div>
+        <button onclick="copyRevised()" id="copyBtn" class="text-xs text-accent-500 hover:text-accent-400 transition-colors px-3 py-1 rounded-lg bg-accent-500/10 hover:bg-accent-500/20">
+          <i class="fas fa-copy mr-1"></i>교정문 복사
+        </button>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-2"><span class="text-xs font-medium text-red-400 px-2 py-0.5 rounded-full bg-red-500/10"><i class="fas fa-file-lines mr-1"></i>원문 (Before)</span></div>
+          <div id="beforeText" class="diff-remove text-sm leading-relaxed text-gray-400 whitespace-pre-wrap rounded-xl max-h-60 overflow-y-auto"></div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 mb-2"><span class="text-xs font-medium text-green-400 px-2 py-0.5 rounded-full bg-green-500/10"><i class="fas fa-wand-magic-sparkles mr-1"></i>교정문 (After)</span></div>
+          <div id="afterText" class="diff-add text-sm leading-relaxed text-gray-200 whitespace-pre-wrap rounded-xl max-h-60 overflow-y-auto"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /resultContent -->
+</div><!-- /panel-write -->
+
+<!-- ===== TAB: HISTORY ===== -->
+<div id="panel-history" class="hidden fade-up">
+  <div class="glass rounded-2xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-white font-semibold text-sm"><i class="fas fa-clock-rotate-left mr-2 text-accent-500"></i>교정 이력</h3>
+      <select id="historyFilter" onchange="loadHistory()" class="px-3 py-1.5 bg-navy-950 border border-gray-800 rounded-lg text-xs text-gray-300">
+        <option value="">전체 카테고리</option>
+      </select>
+    </div>
+    <div id="historyList" class="space-y-3">
+      <div class="text-center py-12"><i class="fas fa-inbox text-3xl text-gray-700 mb-3 block"></i><p class="text-gray-600 text-sm">교정 이력이 없습니다</p></div>
+    </div>
+    <div id="loadMoreArea" class="hidden text-center mt-4">
+      <button onclick="loadMoreHistory()" class="px-6 py-2 glass-light rounded-xl text-sm text-gray-300 hover:text-white transition-colors">더 보기 <i class="fas fa-chevron-down ml-1"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB: STATS ===== -->
+<div id="panel-stats" class="hidden fade-up">
+  <div class="grid grid-cols-3 gap-4 mb-4">
+    <div class="glass rounded-2xl p-5 text-center relative overflow-hidden">
+      <div class="absolute inset-0 bg-accent-500/5"></div>
+      <div class="relative"><div class="font-display text-3xl font-black text-accent-500" id="statTotal">0</div><div class="text-[11px] text-gray-500 mt-1">총 분석 횟수</div></div>
+    </div>
+    <div class="glass rounded-2xl p-5 text-center relative overflow-hidden">
+      <div class="absolute inset-0 bg-blue-500/5"></div>
+      <div class="relative"><div class="font-display text-3xl font-black text-blue-400" id="statAvgAI">0</div><div class="text-[11px] text-gray-500 mt-1">평균 AI 점수</div></div>
+    </div>
+    <div class="glass rounded-2xl p-5 text-center relative overflow-hidden">
+      <div class="absolute inset-0 bg-accent-500/5"></div>
+      <div class="relative"><div class="font-display text-3xl font-black text-accent-400" id="statAvgHuman">0</div><div class="text-[11px] text-gray-500 mt-1">평균 인간 점수</div></div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="glass rounded-2xl p-5"><h3 class="text-white font-semibold text-sm mb-3"><i class="fas fa-chart-line mr-2 text-accent-500"></i>점수 추이 (최근 10건)</h3><canvas id="trendChart" height="200"></canvas></div>
+    <div class="glass rounded-2xl p-5"><h3 class="text-white font-semibold text-sm mb-3"><i class="fas fa-chart-bar mr-2 text-accent-500"></i>카테고리별 평균</h3><canvas id="categoryChart" height="200"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== TAB: SETTINGS ===== -->
+<div id="panel-settings" class="hidden fade-up">
+  <div class="max-w-2xl mx-auto space-y-4">
+    <div class="glass rounded-2xl p-6">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-10 h-10 grad-orange rounded-xl flex items-center justify-center glow-o"><i class="fas fa-key text-white"></i></div>
+        <div><h3 class="text-white font-semibold">AI API 키 설정</h3><p class="text-xs text-gray-500">분석에 사용할 API 키를 등록하세요</p></div>
+      </div>
+      <div id="apiKeyAlert" class="hidden mb-4 px-4 py-3 rounded-xl text-sm"></div>
+
+      <!-- Gemini -->
+      <div class="glass-light rounded-xl p-4 mb-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 bg-blue-500/15 rounded-lg flex items-center justify-center"><i class="fas fa-gem text-blue-400"></i></div>
+            <div><div class="text-sm font-medium text-white">Google Gemini <span class="text-[10px] text-gray-500">2.5 Flash</span></div>
+            <span id="geminiStatus" class="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">미등록</span></div>
+          </div>
+          <button onclick="toggleKeyInput('gemini')" class="text-xs text-accent-500 hover:text-accent-400 px-3 py-1 rounded-lg bg-accent-500/10 hover:bg-accent-500/20 transition-all"><i class="fas fa-pen mr-1"></i>설정</button>
+        </div>
+        <div id="geminiKeyInput" class="hidden mt-3 space-y-2 pt-3 border-t border-gray-800">
+          <div class="relative">
+            <input id="geminiKeyField" type="password" placeholder="AIza... 형식의 Gemini API 키" class="w-full px-3 py-2.5 pr-10 bg-navy-950 border border-gray-800 rounded-lg text-sm text-gray-200 placeholder-gray-600 transition-all">
+            <button onclick="toggleKeyVisibility('geminiKeyField')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-300"><i class="fas fa-eye text-xs"></i></button>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="saveApiKey('gemini')" class="flex-1 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm rounded-lg transition-all"><i class="fas fa-save mr-1"></i>저장</button>
+            <button onclick="verifyApiKey('gemini')" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-all"><i class="fas fa-circle-check mr-1"></i>검증</button>
+            <button onclick="deleteApiKey('gemini')" class="py-2 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm rounded-lg transition-all"><i class="fas fa-trash"></i></button>
+          </div>
+          <p class="text-[11px] text-gray-600"><i class="fas fa-arrow-up-right-from-square mr-1"></i><a href="https://aistudio.google.com/apikey" target="_blank" class="text-accent-500 hover:underline">Google AI Studio</a>에서 무료 발급</p>
+        </div>
+      </div>
+
+      <!-- OpenAI / Claude placeholders -->
+      <div class="glass-light rounded-xl p-4 mb-3 opacity-50"><div class="flex items-center justify-between"><div class="flex items-center gap-2.5"><div class="w-9 h-9 bg-green-500/15 rounded-lg flex items-center justify-center"><i class="fas fa-brain text-green-400"></i></div><div><div class="text-sm text-white">OpenAI GPT</div><span class="text-[10px] text-gray-600">2단계 지원 예정</span></div></div><i class="fas fa-lock text-gray-700"></i></div></div>
+      <div class="glass-light rounded-xl p-4 opacity-50"><div class="flex items-center justify-between"><div class="flex items-center gap-2.5"><div class="w-9 h-9 bg-purple-500/15 rounded-lg flex items-center justify-center"><i class="fas fa-robot text-purple-400"></i></div><div><div class="text-sm text-white">Anthropic Claude</div><span class="text-[10px] text-gray-600">2단계 지원 예정</span></div></div><i class="fas fa-lock text-gray-700"></i></div></div>
+    </div>
+
+    <div class="glass rounded-2xl p-5">
+      <h4 class="text-sm font-semibold text-white mb-3"><i class="fas fa-shield-halved mr-2 text-green-400"></i>보안 안내</h4>
+      <ul class="space-y-1.5 text-xs text-gray-500">
+        <li><i class="fas fa-check text-green-600 mr-2"></i>API 키는 암호화되어 서버에 저장됩니다</li>
+        <li><i class="fas fa-check text-green-600 mr-2"></i>다른 사용자에게 절대 노출되지 않습니다</li>
+        <li><i class="fas fa-triangle-exclamation text-yellow-600 mr-2"></i>API 사용량에 따라 비용이 발생할 수 있습니다</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ==================== State ====================
+let currentUser=null,categories=[],radarChart=null,trendChart=null,categoryChart=null,historyOffset=0,hasValidApiKey=false;
+const API='';
+const CIRCUMFERENCE=427.26;
+
+// ==================== Auth ====================
+function enterApp(){
+  const n=document.getElementById('nicknameInput').value.trim();
+  if(!n){alert('닉네임을 입력해주세요.');return}
+  fetch(API+'/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nickname:n})})
+  .then(r=>r.json()).then(d=>{
+    if(d.error){alert(d.error);return}
+    currentUser=d.user;
+    document.getElementById('displayNickname').textContent=currentUser.nickname;
+    document.getElementById('loginModal').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    loadCategories();checkApiKeyOnLogin();
+  }).catch(e=>alert('연결 오류: '+e.message));
+}
+function logout(){currentUser=null;hasValidApiKey=false;document.getElementById('mainApp').classList.add('hidden');document.getElementById('loginModal').classList.remove('hidden');document.getElementById('nicknameInput').value=''}
+
+// ==================== Tabs ====================
+function switchTab(t){
+  ['write','history','stats','settings'].forEach(x=>{
+    document.getElementById('panel-'+x).classList.toggle('hidden',x!==t);
+    const btn=document.getElementById('tab-'+x);
+    btn.className=x===t?'tab-active px-5 py-2 rounded-xl text-sm font-medium transition-all':'tab-inactive px-5 py-2 rounded-xl text-sm font-medium transition-all';
+  });
+  if(t==='history'){historyOffset=0;loadHistory()}
+  if(t==='stats')loadStats();
+  if(t==='settings')loadApiKeyStatus();
+}
+
+// ==================== Categories ====================
+function loadCategories(){
+  fetch(API+'/api/categories').then(r=>r.json()).then(d=>{
+    categories=d.categories||[];
+    const s=document.getElementById('categorySelect'),f=document.getElementById('historyFilter');
+    s.innerHTML='<option value="">카테고리 선택</option>';
+    f.innerHTML='<option value="">전체 카테고리</option>';
+    categories.forEach(c=>{s.innerHTML+='<option value="'+c.id+'">'+c.name+'</option>';f.innerHTML+='<option value="'+c.id+'">'+c.name+'</option>'});
+  });
+}
+
+// ==================== Analysis ====================
+document.getElementById('inputText').addEventListener('input',function(){document.getElementById('charCount').textContent=this.value.length});
+
+function analyzeText(){
+  const text=document.getElementById('inputText').value.trim();
+  if(!text){alert('글을 입력해주세요.');return}
+  if(!currentUser){alert('로그인이 필요합니다.');return}
+  if(!hasValidApiKey){if(confirm('API 키가 등록되지 않았습니다. 설정으로 이동할까요?')){switchTab('settings')}return}
+
+  const btn=document.getElementById('analyzeBtn');
+  btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>분석 중...';
+
+  document.getElementById('resultPlaceholder').classList.add('hidden');
+  document.getElementById('resultContent').classList.add('hidden');
+  document.getElementById('resultLoading').classList.remove('hidden');
+
+  // Loading text rotation
+  const msgs=['성·기·대·변 요소를 진단하는 중...','AI 검색 최적화 점수를 계산하는 중...','인간 공감 요소를 분석하는 중...','교정문을 생성하는 중...'];
+  let mi=0;const lt=setInterval(()=>{mi=(mi+1)%msgs.length;document.getElementById('loadingSubtext').textContent=msgs[mi]},2000);
+
+  fetch(API+'/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    text,category_id:document.getElementById('categorySelect').value?parseInt(document.getElementById('categorySelect').value):null,
+    user_id:currentUser.id,tone:document.getElementById('toneSelect').value||null
+  })}).then(r=>r.json()).then(d=>{
+    clearInterval(lt);
+    if(d.error){alert(d.error);return}
+    displayResult(d.result,text);
+  }).catch(e=>{clearInterval(lt);alert('분석 오류: '+e.message)})
+  .finally(()=>{btn.disabled=false;btn.innerHTML='<i class="fas fa-bolt mr-2"></i>이중 글쓰기 분석';document.getElementById('resultLoading').classList.add('hidden')});
+}
+
+function displayResult(r,originalText){
+  document.getElementById('resultContent').classList.remove('hidden');
+  const ai=r.analysis.ai_score,hu=r.analysis.human_score;
+  const ad=r.analysis.ai_details||{},hd=r.analysis.human_details||{};
+
+  // Grade
+  const avg=(ai+hu)/2;
+  let grade,gClass,gComment;
+  if(avg>=95){grade='S';gClass='bg-gradient-to-r from-yellow-500 to-amber-400 text-black';gComment='완벽에 가까운 이중 글쓰기입니다!'}
+  else if(avg>=85){grade='A';gClass='bg-gradient-to-r from-green-500 to-emerald-400 text-black';gComment='훌륭합니다! 소폭 보완하면 완성도가 더 높아집니다'}
+  else if(avg>=70){grade='B';gClass='bg-gradient-to-r from-blue-500 to-cyan-400 text-white';gComment='좋은 수준입니다. AI 또는 인간 점수를 보강하세요'}
+  else if(avg>=50){grade='C';gClass='bg-gradient-to-r from-orange-500 to-amber-500 text-white';gComment='개선이 필요합니다. 피드백을 참고하세요'}
+  else{grade='D';gClass='bg-gradient-to-r from-red-500 to-pink-500 text-white';gComment='성·기·대·변 요소를 전반적으로 보강해야 합니다'}
+
+  const badge=document.getElementById('gradeBadge');
+  badge.className='inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold mb-2 count-up '+gClass;
+  badge.innerHTML='<span class="font-display text-2xl">'+grade+'</span><span>등급</span><span class="opacity-70">|</span><span>종합 '+Math.round(avg)+'점</span>';
+  document.getElementById('gradeComment').textContent=gComment;
+
+  // Score rings
+  animateNum('aiScoreNum',ai);animateNum('humanScoreNum',hu);
+  setTimeout(()=>{
+    document.getElementById('aiRing').style.strokeDashoffset=CIRCUMFERENCE-(CIRCUMFERENCE*ai/100);
+    document.getElementById('humanRing').style.strokeDashoffset=CIRCUMFERENCE-(CIRCUMFERENCE*hu/100);
+  },100);
+
+  // Details + progress bars
+  setDetail('dNum','pNum',ad.numbers||0,40);setDetail('dSrc','pSrc',ad.source||0,30);setDetail('dStr','pStr',ad.structure||0,30);
+  setDetail('dTgt','pTgt',hd.target||0,30);setDetail('dVal','pVal',hd.value||0,40);setDetail('dEmp','pEmp',hd.empathy||0,30);
+
+  // Radar
+  updateRadarChart(ad,hd);
+
+  // Checklist
+  const cl=r.checklist||{};
+  const items=[
+    {k:'has_numbers',l:'수치(%) 데이터 포함',i:'fa-hashtag',tip:'구체적인 숫자, 퍼센트, 금액 등을 포함하세요'},
+    {k:'has_source',l:'출처 / 측정 기간 명시',i:'fa-quote-right',tip:'신뢰할 수 있는 출처나 기간을 밝히세요'},
+    {k:'has_target',l:'혜택 대상(누구에게) 특정',i:'fa-bullseye',tip:'이 글이 누구에게 도움이 되는지 명시하세요'},
+    {k:'has_benefit',l:'변화(Benefit) 서술',i:'fa-arrow-trend-up',tip:'독자가 얻을 구체적 변화를 서술하세요'},
+    {k:'is_head_heavy',l:'핵심 키워드 두괄식 배치',i:'fa-heading',tip:'핵심 결론을 문장 맨 앞에 배치하세요'}
+  ];
+  const passCount=items.filter(x=>cl[x.k]).length;
+  const cs=document.getElementById('checkScore');
+  cs.textContent=passCount+'/5 통과';
+  cs.className='ml-auto text-xs font-bold px-2.5 py-0.5 rounded-full '+(passCount>=4?'bg-green-500/20 text-green-400':passCount>=2?'bg-yellow-500/20 text-yellow-400':'bg-red-500/20 text-red-400');
+
+  document.getElementById('checklistArea').innerHTML=items.map((it,idx)=>{
+    const pass=cl[it.k];
+    return '<div class="check-card '+(pass?'check-pass':'check-fail')+' rounded-xl px-4 py-3 fade-up" style="animation-delay:'+(idx*0.08)+'s">'
+      +'<div class="flex items-center justify-between">'
+      +'<div class="flex items-center gap-3">'
+      +'<i class="fas '+(pass?'fa-circle-check text-green-500':'fa-circle-xmark text-red-500')+' text-base"></i>'
+      +'<div><div class="text-sm text-gray-200"><i class="fas '+it.i+' mr-1.5 text-xs opacity-40"></i>'+it.l+'</div>'
+      +(pass?'':'<div class="text-[11px] text-gray-500 mt-0.5"><i class="fas fa-lightbulb mr-1 text-yellow-600"></i>'+it.tip+'</div>')
+      +'</div></div>'
+      +'<span class="text-xs font-bold '+(pass?'text-green-400':'text-red-400')+'">'+(pass?'PASS':'FAIL')+'</span>'
+      +'</div></div>';
+  }).join('');
+
+  // Feedback
+  const fbs=r.analysis.feedback||[];
+  document.getElementById('feedbackList').innerHTML=fbs.map((f,i)=>
+    '<li class="flex items-start gap-3 p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 slide-in" style="animation-delay:'+(i*0.1)+'s">'
+    +'<span class="flex-shrink-0 w-6 h-6 rounded-full grad-blue flex items-center justify-center text-[10px] text-white font-bold mt-0.5">'+(i+1)+'</span>'
+    +'<span class="text-sm text-gray-300 leading-relaxed">'+f+'</span></li>'
+  ).join('');
+
+  // Before/After
+  document.getElementById('beforeText').textContent=originalText;
+  document.getElementById('afterText').textContent=r.revised_text||'';
+}
+
+function setDetail(labelId,barId,val,max){
+  document.getElementById(labelId).textContent=val+'/'+max;
+  setTimeout(()=>{document.getElementById(barId).style.width=((val/max)*100)+'%'},200);
+}
+
+function animateNum(id,target){
+  const el=document.getElementById(id);let cur=0;
+  const step=Math.max(1,Math.ceil(target/40));
+  const t=setInterval(()=>{cur=Math.min(cur+step,target);el.textContent=cur;if(cur>=target)clearInterval(t)},25);
+}
+
+function updateRadarChart(ai,hu){
+  const ctx=document.getElementById('radarChart').getContext('2d');
+  if(radarChart)radarChart.destroy();
+  radarChart=new Chart(ctx,{type:'radar',data:{
+    labels:['수치 데이터','출처/기간','두괄식 구조','대상 특정','변화/가치','공감 묘사'],
+    datasets:[{
+      data:[((ai.numbers||0)/40)*100,((ai.source||0)/30)*100,((ai.structure||0)/30)*100,((hu.target||0)/30)*100,((hu.value||0)/40)*100,((hu.empathy||0)/30)*100],
+      borderColor:'#a855f7',backgroundColor:'rgba(168,85,247,0.1)',borderWidth:2,
+      pointBackgroundColor:ctx2=>{const i=ctx2.dataIndex;return i<3?'#3b82f6':'#F97316'},
+      pointBorderColor:'transparent',pointRadius:5,pointHoverRadius:8
+    }]
+  },options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx2=>{
+    const l=['수치(AI)','출처(AI)','구조(AI)','대상(Human)','가치(Human)','공감(Human)'];
+    return l[ctx2.dataIndex]+': '+Math.round(ctx2.raw)+'%'}}}},
+    scales:{r:{beginAtZero:true,max:100,
+      grid:{color:'rgba(148,163,184,0.08)'},angleLines:{color:'rgba(148,163,184,0.08)'},
+      pointLabels:{color:ctx2=>ctx2.index<3?'#60a5fa':'#fb923c',font:{size:11,weight:'500'}},
+      ticks:{display:false,stepSize:25}
+    }}
+  }});
+}
+
+function copyRevised(){
+  const t=document.getElementById('afterText').textContent;
+  navigator.clipboard.writeText(t).then(()=>{
+    const b=document.getElementById('copyBtn');b.innerHTML='<i class="fas fa-check mr-1"></i>복사 완료!';
+    setTimeout(()=>{b.innerHTML='<i class="fas fa-copy mr-1"></i>교정문 복사'},2000);
+  });
+}
+
+// ==================== History ====================
+function loadHistory(){
+  if(!currentUser)return;historyOffset=0;
+  const c=document.getElementById('historyFilter').value;
+  let u=API+'/api/logs?user_id='+currentUser.id+'&limit=10&offset=0';
+  if(c)u+='&category_id='+c;
+  fetch(u).then(r=>r.json()).then(d=>{
+    const l=d.logs||[],el=document.getElementById('historyList');
+    if(!l.length){el.innerHTML='<div class="text-center py-12"><i class="fas fa-inbox text-3xl text-gray-700 mb-3 block"></i><p class="text-gray-600 text-sm">교정 이력이 없습니다</p></div>';document.getElementById('loadMoreArea').classList.add('hidden');return}
+    el.innerHTML=l.map(renderLog).join('');
+    document.getElementById('loadMoreArea').classList.toggle('hidden',l.length<10);historyOffset=l.length;
+  });
+}
+function loadMoreHistory(){
+  const c=document.getElementById('historyFilter').value;
+  let u=API+'/api/logs?user_id='+currentUser.id+'&limit=10&offset='+historyOffset;if(c)u+='&category_id='+c;
+  fetch(u).then(r=>r.json()).then(d=>{const l=d.logs||[];document.getElementById('historyList').innerHTML+=l.map(renderLog).join('');document.getElementById('loadMoreArea').classList.toggle('hidden',l.length<10);historyOffset+=l.length});
+}
+function renderLog(l){
+  const avg=Math.round((l.ai_score+l.human_score)/2);
+  const gc=avg>=85?'text-green-400':avg>=60?'text-blue-400':avg>=40?'text-yellow-400':'text-red-400';
+  return '<div class="glass-light rounded-xl p-4 hover:border-gray-700 transition-all">'
+    +'<div class="flex items-center justify-between mb-2">'
+    +'<div class="flex items-center gap-2">'
+    +(l.category_name?'<span class="px-2 py-0.5 bg-accent-500/15 text-accent-400 text-[11px] rounded-full font-medium">'+l.category_name+'</span>':'')
+    +'<span class="text-[11px] text-gray-600">'+(l.created_at||'')+'</span></div>'
+    +'<div class="flex items-center gap-3">'
+    +'<span class="text-xs text-blue-400"><i class="fas fa-robot mr-1"></i>'+l.ai_score+'</span>'
+    +'<span class="text-xs text-accent-400"><i class="fas fa-heart mr-1"></i>'+l.human_score+'</span>'
+    +'<span class="font-display font-bold text-sm '+gc+'">'+avg+'</span>'
+    +'</div></div>'
+    +'<p class="text-xs text-gray-500 line-clamp-2">'+(l.original_text||'').substring(0,150)+'</p></div>';
+}
+
+// ==================== Stats ====================
+function loadStats(){
+  if(!currentUser)return;
+  fetch(API+'/api/stats?user_id='+currentUser.id).then(r=>r.json()).then(d=>{
+    const s=d.stats||{};
+    document.getElementById('statTotal').textContent=s.total_writes||0;
+    document.getElementById('statAvgAI').textContent=s.avg_ai_score||0;
+    document.getElementById('statAvgHuman').textContent=s.avg_human_score||0;
+    updateTrendChart((d.recentTrend||[]).reverse());
+    updateCategoryChart(d.categoryStats||[]);
+  });
+}
+function updateTrendChart(t){
+  const ctx=document.getElementById('trendChart').getContext('2d');if(trendChart)trendChart.destroy();
+  trendChart=new Chart(ctx,{type:'line',data:{labels:t.map((_,i)=>'#'+(i+1)),datasets:[
+    {label:'AI',data:t.map(x=>x.ai_score),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',tension:0.4,fill:true,pointRadius:4,pointBackgroundColor:'#3b82f6'},
+    {label:'Human',data:t.map(x=>x.human_score),borderColor:'#F97316',backgroundColor:'rgba(249,115,22,0.08)',tension:0.4,fill:true,pointRadius:4,pointBackgroundColor:'#F97316'}
+  ]},options:{responsive:true,plugins:{legend:{labels:{color:'#94a3b8',usePointStyle:true,pointStyle:'circle'}}},
+    scales:{x:{ticks:{color:'#475569'},grid:{color:'rgba(148,163,184,0.05)'}},y:{min:0,max:100,ticks:{color:'#475569'},grid:{color:'rgba(148,163,184,0.05)'}}}
+  }});
+}
+function updateCategoryChart(c){
+  const ctx=document.getElementById('categoryChart').getContext('2d');if(categoryChart)categoryChart.destroy();
+  if(!c.length){ctx.font='13px Noto Sans KR';ctx.fillStyle='#475569';ctx.textAlign='center';ctx.fillText('아직 데이터가 없습니다',ctx.canvas.width/2,ctx.canvas.height/2);return}
+  categoryChart=new Chart(ctx,{type:'bar',data:{labels:c.map(x=>x.name),datasets:[
+    {label:'AI',data:c.map(x=>x.avg_ai),backgroundColor:'rgba(59,130,246,0.6)',borderRadius:6},
+    {label:'Human',data:c.map(x=>x.avg_human),backgroundColor:'rgba(249,115,22,0.6)',borderRadius:6}
+  ]},options:{responsive:true,plugins:{legend:{labels:{color:'#94a3b8',usePointStyle:true,pointStyle:'circle'}}},
+    scales:{x:{ticks:{color:'#475569'},grid:{display:false}},y:{min:0,max:100,ticks:{color:'#475569'},grid:{color:'rgba(148,163,184,0.05)'}}}
+  }});
+}
+
+// ==================== API Keys ====================
+function checkApiKeyOnLogin(){
+  fetch(API+'/api/keys?user_id='+currentUser.id).then(r=>r.json()).then(d=>{
+    const g=(d.keys||[]).find(k=>k.provider==='gemini');
+    hasValidApiKey=!!(g&&g.is_valid);
+    document.getElementById('headerKeyStatus').classList.toggle('hidden',!hasValidApiKey);
+    document.getElementById('apiKeyWarning').classList.toggle('hidden',hasValidApiKey);
+  });
+}
+function loadApiKeyStatus(){
+  if(!currentUser)return;
+  fetch(API+'/api/keys?user_id='+currentUser.id).then(r=>r.json()).then(d=>{
+    const g=(d.keys||[]).find(k=>k.provider==='gemini'),el=document.getElementById('geminiStatus');
+    if(g&&g.is_valid){el.className='text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400';el.textContent='등록됨';hasValidApiKey=true;document.getElementById('headerKeyStatus').classList.remove('hidden');document.getElementById('apiKeyWarning').classList.add('hidden')}
+    else if(g){el.className='text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400';el.textContent='유효하지 않음';hasValidApiKey=false}
+    else{el.className='text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-500';el.textContent='미등록';hasValidApiKey=false}
+  });
+}
+function toggleKeyInput(p){document.getElementById(p+'KeyInput').classList.toggle('hidden')}
+function toggleKeyVisibility(id){const f=document.getElementById(id);f.type=f.type==='password'?'text':'password'}
+function showAlert(m,t){
+  const e=document.getElementById('apiKeyAlert');e.classList.remove('hidden');
+  e.className='mb-4 px-4 py-3 rounded-xl text-sm '+(t==='success'?'bg-green-500/10 border border-green-500/20 text-green-300':t==='error'?'bg-red-500/10 border border-red-500/20 text-red-300':'bg-blue-500/10 border border-blue-500/20 text-blue-300');
+  e.innerHTML='<i class="fas fa-'+(t==='success'?'circle-check':t==='error'?'circle-xmark':'circle-info')+' mr-2"></i>'+m;
+  setTimeout(()=>e.classList.add('hidden'),5000);
+}
+function saveApiKey(p){
+  const k=document.getElementById(p+'KeyField').value.trim();if(!k){showAlert('API 키를 입력해주세요.','error');return}
+  fetch(API+'/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser.id,provider:p,api_key:k})})
+  .then(r=>r.json()).then(d=>{if(d.error){showAlert(d.error,'error');return}showAlert('저장되었습니다. 검증 버튼으로 확인하세요.','success');document.getElementById(p+'KeyField').value='';loadApiKeyStatus()}).catch(e=>showAlert(e.message,'error'));
+}
+function verifyApiKey(p){
+  showAlert('검증 중...','info');
+  fetch(API+'/api/keys/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser.id,provider:p})})
+  .then(r=>r.json()).then(d=>{showAlert(d.valid?'API 키가 정상 작동합니다!':'검증 실패: '+(d.error||''),d.valid?'success':'error');loadApiKeyStatus()}).catch(e=>showAlert(e.message,'error'));
+}
+function deleteApiKey(p){
+  if(!confirm('API 키를 삭제하시겠습니까?'))return;
+  fetch(API+'/api/keys',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser.id,provider:p})})
+  .then(r=>r.json()).then(d=>{showAlert('삭제되었습니다.','success');hasValidApiKey=false;loadApiKeyStatus();document.getElementById('headerKeyStatus').classList.add('hidden');document.getElementById('apiKeyWarning').classList.remove('hidden')}).catch(e=>showAlert(e.message,'error'));
+}
+</script>
+</body>
+</html>`
+}
+
+export default app

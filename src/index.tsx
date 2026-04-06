@@ -399,921 +399,841 @@ function getMainHTML(): string {
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WriteScope - 이중 글쓰기 어시스턴트</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              navy: { 50:'#f0f3f8', 100:'#d9e0ed', 200:'#b3c1db', 300:'#8da2c9', 400:'#6783b7', 500:'#4164a5', 600:'#345084', 700:'#273c63', 800:'#1E293B', 900:'#131a27' },
-              accent: { 50:'#fff7ed', 100:'#ffedd5', 200:'#fed7aa', 300:'#fdba74', 400:'#fb923c', 500:'#F97316', 600:'#ea580c', 700:'#c2410c', 800:'#9a3412', 900:'#7c2d12' }
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
-      * { font-family: 'Noto Sans KR', sans-serif; }
-      body { background: #0f172a; }
-      .glass { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
-      .tab-active { background: linear-gradient(135deg, #F97316, #ea580c); color: white; box-shadow: 0 4px 15px rgba(249,115,22,0.4); }
-      .tab-inactive { background: rgba(30, 41, 59, 0.6); color: #94a3b8; }
-      .tab-inactive:hover { background: rgba(51, 65, 85, 0.8); color: #e2e8f0; }
-      .glow-orange { box-shadow: 0 0 20px rgba(249,115,22,0.3); }
-      .score-ring { transition: stroke-dashoffset 1s ease-in-out; }
-      textarea:focus { outline: none; box-shadow: 0 0 0 2px rgba(249,115,22,0.5); }
-      .checklist-pass { color: #22c55e; }
-      .checklist-fail { color: #ef4444; }
-      .fade-in { animation: fadeIn 0.3s ease-in; }
-      @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-      .pulse-loading { animation: pulse 1.5s ease-in-out infinite; }
-      @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
-      ::-webkit-scrollbar { width: 6px; }
-      ::-webkit-scrollbar-track { background: #1e293b; }
-      ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DualWrite Pro - AI + Human 이중 글쓰기</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{colors:{
+  navy:{50:'#f0f3f8',100:'#d9e0ed',200:'#b3c1db',300:'#8da2c9',400:'#6783b7',500:'#4164a5',600:'#345084',700:'#273c63',800:'#1E293B',900:'#131a27',950:'#0c1018'},
+  accent:{50:'#fff7ed',100:'#ffedd5',200:'#fed7aa',300:'#fdba74',400:'#fb923c',500:'#F97316',600:'#ea580c',700:'#c2410c',800:'#9a3412',900:'#7c2d12'}
+}}}}
+</script>
+<style>
+*{font-family:'Noto Sans KR','Inter',system-ui,sans-serif;margin:0;box-sizing:border-box}
+body{background:linear-gradient(135deg,#0a0f1e 0%,#111827 50%,#0f172a 100%);min-height:100vh}
+/* Glassmorphism */
+.glass{background:rgba(15,23,42,0.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06)}
+.glass-light{background:rgba(30,41,59,0.5);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.08)}
+.glass-card{background:linear-gradient(135deg,rgba(15,23,42,0.8),rgba(30,41,59,0.4));backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06);transition:all .3s ease}
+.glass-card:hover{border-color:rgba(249,115,22,0.2);box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+/* Tabs */
+.tab-btn{position:relative;padding:10px 24px;border-radius:12px;font-size:14px;font-weight:500;color:#94a3b8;background:transparent;transition:all .3s ease;cursor:pointer;border:none;white-space:nowrap}
+.tab-btn:hover{color:#e2e8f0;background:rgba(51,65,85,0.4)}
+.tab-btn.active{color:#fff;background:linear-gradient(135deg,#F97316,#ea580c);box-shadow:0 4px 20px rgba(249,115,22,0.4)}
+/* Buttons */
+.btn-primary{background:linear-gradient(135deg,#F97316,#ea580c);color:#fff;font-weight:600;border:none;border-radius:14px;cursor:pointer;transition:all .3s ease;position:relative;overflow:hidden}
+.btn-primary:hover{box-shadow:0 6px 25px rgba(249,115,22,0.5);transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-primary::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);opacity:0;transition:opacity .3s}
+.btn-primary:hover::after{opacity:1}
+/* Score gauge */
+.gauge-ring{transition:stroke-dashoffset 1.5s cubic-bezier(0.4,0,0.2,1)}
+.gauge-glow{filter:drop-shadow(0 0 8px var(--glow-color))}
+/* Inputs */
+.input-field{background:rgba(15,23,42,0.8);border:1px solid rgba(100,116,139,0.3);border-radius:12px;color:#e2e8f0;transition:all .3s ease}
+.input-field:focus{outline:none;border-color:#F97316;box-shadow:0 0 0 3px rgba(249,115,22,0.15)}
+.input-field::placeholder{color:#475569}
+/* Animations */
+.fade-up{animation:fadeUp .5s ease forwards;opacity:0}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.slide-in{animation:slideIn .4s ease forwards}
+@keyframes slideIn{from{opacity:0;transform:translateX(-15px)}to{opacity:1;transform:translateX(0)}}
+.pulse-glow{animation:pulseGlow 2s ease-in-out infinite}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 5px rgba(249,115,22,0.2)}50%{box-shadow:0 0 20px rgba(249,115,22,0.4)}}
+.shimmer{background:linear-gradient(90deg,rgba(30,41,59,0.4) 25%,rgba(51,65,85,0.4) 50%,rgba(30,41,59,0.4) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+/* Score colors */
+.score-excellent{color:#22c55e}.score-good{color:#84cc16}.score-average{color:#eab308}.score-poor{color:#ef4444}
+/* Checklist card */
+.check-card{background:rgba(15,23,42,0.5);border:1px solid rgba(100,116,139,0.15);border-radius:12px;padding:12px 16px;transition:all .3s ease}
+.check-card.pass{border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.05)}
+.check-card.fail{border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.05)}
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#334155;border-radius:10px}::-webkit-scrollbar-thumb:hover{background:#475569}
+/* Diff view */
+.diff-add{background:rgba(34,197,94,0.15);border-left:3px solid #22c55e;padding:2px 8px;border-radius:0 4px 4px 0;margin:1px 0;display:inline}
+.diff-remove{background:rgba(239,68,68,0.15);text-decoration:line-through;color:#f87171;padding:2px 8px;border-radius:4px;margin:1px 0;display:inline}
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;z-index:9999;padding:14px 24px;border-radius:14px;font-size:14px;font-weight:500;transform:translateY(100px);opacity:0;transition:all .4s ease;backdrop-filter:blur(12px)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#86efac}
+.toast.error{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5}
+.toast.info{background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd}
+/* Progress bar */
+.progress-track{height:6px;background:rgba(51,65,85,0.5);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width 1s ease}
+/* Stat card counter */
+.stat-num{font-family:'Inter','Noto Sans KR',sans-serif;font-weight:800;letter-spacing:-0.02em}
+</style>
 </head>
-<body class="min-h-screen text-gray-200">
+<body class="text-gray-200">
 
-<!-- 닉네임 입력 모달 -->
-<div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-  <div class="glass rounded-2xl p-8 w-full max-w-md mx-4 text-center">
-    <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-accent-500 to-accent-600 rounded-2xl flex items-center justify-center">
-      <i class="fas fa-pen-nib text-2xl text-white"></i>
+<!-- ========== LOGIN MODAL ========== -->
+<div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center" style="background:radial-gradient(ellipse at center,rgba(249,115,22,0.08) 0%,rgba(10,15,30,0.95) 70%)">
+  <div class="fade-up glass rounded-3xl p-10 w-full max-w-md mx-4 text-center relative overflow-hidden">
+    <div class="absolute -top-20 -right-20 w-40 h-40 bg-accent-500/10 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-16 -left-16 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
+    <div class="relative z-10">
+      <div class="w-20 h-20 mx-auto mb-5 relative">
+        <div class="absolute inset-0 bg-gradient-to-br from-accent-500 to-accent-700 rounded-2xl rotate-6 opacity-60"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-accent-500 to-accent-600 rounded-2xl flex items-center justify-center">
+          <i class="fas fa-pen-fancy text-2xl text-white"></i>
+        </div>
+      </div>
+      <h1 class="text-3xl font-extrabold text-white mb-1 tracking-tight">DualWrite<span class="text-accent-500"> Pro</span></h1>
+      <p class="text-gray-400 mb-1 text-sm font-medium">AI + Human Dual Writing Assistant</p>
+      <p class="text-gray-500 text-xs mb-8">AI 검색 최적화와 인간 공감, 두 시선으로 글을 완성합니다</p>
+      <div class="relative mb-4">
+        <i class="fas fa-user-astronaut absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
+        <input id="nicknameInput" type="text" maxlength="20" placeholder="닉네임을 입력하세요"
+          class="input-field w-full pl-11 pr-4 py-3.5 text-center text-lg font-medium"
+          onkeypress="if(event.key==='Enter')enterApp()">
+      </div>
+      <button onclick="enterApp()" class="btn-primary w-full py-3.5 text-lg">
+        <i class="fas fa-rocket mr-2"></i>시작하기
+      </button>
+      <p class="text-[11px] text-gray-600 mt-4">성(성과) · 기(기준) · 대(대상) · 변(변화) 공식 기반 분석</p>
     </div>
-    <h2 class="text-2xl font-bold text-white mb-2">WriteScope</h2>
-    <p class="text-gray-400 mb-6 text-sm">AI와 인간, 두 시선으로 글을 완성하다</p>
-    <input id="nicknameInput" type="text" maxlength="20" placeholder="닉네임을 입력하세요"
-           class="w-full px-4 py-3 bg-navy-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 text-center text-lg mb-4 focus:border-accent-500 transition-colors"
-           onkeypress="if(event.key==='Enter') enterApp()">
-    <button onclick="enterApp()" class="w-full py-3 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-semibold rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all glow-orange">
-      <i class="fas fa-arrow-right mr-2"></i>시작하기
-    </button>
   </div>
 </div>
 
-<!-- 메인 앱 -->
+<!-- ========== MAIN APP ========== -->
 <div id="mainApp" class="hidden">
-  <!-- 헤더 -->
-  <header class="glass sticky top-0 z-40 border-b border-gray-800">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 bg-gradient-to-br from-accent-500 to-accent-600 rounded-lg flex items-center justify-center">
-          <i class="fas fa-pen-nib text-white text-sm"></i>
+
+<!-- HEADER -->
+<header class="glass sticky top-0 z-40" style="border-bottom:1px solid rgba(255,255,255,0.04)">
+  <div class="max-w-[1400px] mx-auto px-5 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg shadow-accent-500/20">
+        <i class="fas fa-pen-fancy text-white text-sm"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-white leading-tight tracking-tight">DualWrite <span class="text-accent-500">Pro</span></h1>
+        <p class="text-[10px] text-gray-500 font-medium">AI + Human Dual Writing</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-navy-800/50">
+        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+        <span id="displayNickname" class="text-sm text-gray-300 font-medium"></span>
+      </div>
+      <button onclick="logout()" class="w-8 h-8 rounded-lg bg-navy-800/50 flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all" title="로그아웃">
+        <i class="fas fa-sign-out-alt text-xs"></i>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- TAB NAV -->
+<div class="max-w-[1400px] mx-auto px-5 pt-4">
+  <div class="flex gap-2 overflow-x-auto pb-1">
+    <button onclick="switchTab('write')" id="tab-write" class="tab-btn active"><i class="fas fa-pen-nib mr-2"></i>글쓰기 분석</button>
+    <button onclick="switchTab('history')" id="tab-history" class="tab-btn"><i class="fas fa-clock-rotate-left mr-2"></i>교정 이력</button>
+    <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn"><i class="fas fa-chart-column mr-2"></i>통계</button>
+    <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn"><i class="fas fa-sliders mr-2"></i>설정</button>
+  </div>
+</div>
+
+<!-- TAB CONTENT -->
+<main class="max-w-[1400px] mx-auto px-5 py-4 pb-20">
+
+<!-- ===== TAB: WRITE ===== -->
+<div id="panel-write" class="fade-up">
+  <!-- API Key Warning Banner -->
+  <div id="apiKeyBanner" class="hidden mb-4 p-4 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+        <i class="fas fa-key text-yellow-400"></i>
+      </div>
+      <div>
+        <p class="text-sm font-semibold text-yellow-300">API 키를 먼저 등록해주세요</p>
+        <p class="text-xs text-yellow-500/80">설정 탭에서 Gemini API 키를 등록하면 분석을 시작할 수 있습니다</p>
+      </div>
+    </div>
+    <button onclick="switchTab('settings')" class="btn-primary px-5 py-2 text-sm flex-shrink-0">설정 이동 <i class="fas fa-arrow-right ml-1"></i></button>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
+    <!-- LEFT: Input (3 cols) -->
+    <div class="xl:col-span-2 space-y-4">
+      <div class="glass-card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-white font-bold text-base"><i class="fas fa-feather-pointed mr-2 text-accent-500"></i>원문 입력</h3>
+          <span class="text-[11px] text-gray-500 bg-navy-800/50 px-2.5 py-1 rounded-full"><i class="fas fa-info-circle mr-1"></i>최대 3,000자</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="text-[11px] text-gray-500 font-medium mb-1.5 block uppercase tracking-wider">카테고리</label>
+            <select id="categorySelect" class="input-field w-full px-3 py-2.5 text-sm">
+              <option value="">선택 안함</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] text-gray-500 font-medium mb-1.5 block uppercase tracking-wider">어조</label>
+            <select id="toneSelect" class="input-field w-full px-3 py-2.5 text-sm">
+              <option value="">자동</option>
+              <option value="전문적">전문적</option>
+              <option value="친근한">친근한</option>
+              <option value="설득적">설득적</option>
+              <option value="감성적">감성적</option>
+              <option value="유머러스">유머러스</option>
+            </select>
+          </div>
+        </div>
+        <div class="relative">
+          <textarea id="inputText" rows="16" maxlength="3000" placeholder="분석할 블로그 글을 입력하세요...&#10;&#10;AI 검색 노출(GEO)과 인간 공감을 동시에 만족하는&#10;이중 글쓰기로 교정해 드립니다."
+            class="input-field w-full px-4 py-3.5 text-sm leading-relaxed resize-none"></textarea>
+          <div class="absolute bottom-3 right-3 flex items-center gap-2">
+            <div class="h-1.5 w-24 rounded-full bg-navy-700 overflow-hidden">
+              <div id="charBar" class="h-full bg-accent-500 rounded-full transition-all duration-300" style="width:0%"></div>
+            </div>
+            <span class="text-[11px] text-gray-500 font-mono"><span id="charCount">0</span>/3,000</span>
+          </div>
+        </div>
+        <button onclick="analyzeText()" id="analyzeBtn" class="btn-primary w-full mt-4 py-3.5 text-base tracking-wide">
+          <i class="fas fa-wand-magic-sparkles mr-2"></i>이중 글쓰기 분석
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Results (3 cols) -->
+    <div class="xl:col-span-3 space-y-4">
+      <!-- Placeholder -->
+      <div id="resultPlaceholder" class="glass-card rounded-2xl p-8 flex flex-col items-center justify-center min-h-[500px]">
+        <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-navy-700 to-navy-800 flex items-center justify-center mb-6 relative">
+          <i class="fas fa-pen-ruler text-3xl text-gray-600"></i>
+          <div class="absolute -top-1 -right-1 w-6 h-6 bg-accent-500/20 rounded-full flex items-center justify-center">
+            <i class="fas fa-sparkle text-accent-500 text-[10px]"></i>
+          </div>
+        </div>
+        <p class="text-gray-400 font-semibold text-lg mb-2">글을 입력하고 분석을 시작하세요</p>
+        <p class="text-gray-600 text-sm text-center max-w-sm">성·기·대·변 공식으로 AI 검색 최적화 점수와<br>인간 공감 점수를 동시에 진단합니다</p>
+        <div class="flex gap-6 mt-8">
+          <div class="text-center"><div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-2"><i class="fas fa-robot text-blue-400"></i></div><span class="text-[11px] text-gray-500">AI 점수</span></div>
+          <div class="text-center"><div class="w-12 h-12 rounded-xl bg-accent-500/10 flex items-center justify-center mb-2"><i class="fas fa-heart text-accent-400"></i></div><span class="text-[11px] text-gray-500">인간 점수</span></div>
+          <div class="text-center"><div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-2"><i class="fas fa-chart-radar text-purple-400"></i></div><span class="text-[11px] text-gray-500">레이더 차트</span></div>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div id="resultLoading" class="hidden glass-card rounded-2xl p-8 flex flex-col items-center justify-center min-h-[500px]">
+        <div class="relative w-24 h-24 mb-6">
+          <div class="absolute inset-0 border-4 border-accent-500/20 rounded-full"></div>
+          <div class="absolute inset-0 border-4 border-transparent border-t-accent-500 rounded-full animate-spin"></div>
+          <div class="absolute inset-3 border-4 border-transparent border-b-blue-400 rounded-full animate-spin" style="animation-direction:reverse;animation-duration:1.5s"></div>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <i class="fas fa-wand-magic-sparkles text-accent-500 animate-pulse"></i>
+          </div>
+        </div>
+        <p class="text-gray-300 font-semibold mb-1">AI가 글을 분석하고 있습니다</p>
+        <p class="text-gray-500 text-sm">성·기·대·변 요소를 검토 중...</p>
+        <div class="flex gap-1 mt-4">
+          <div class="w-2 h-2 bg-accent-500 rounded-full animate-bounce" style="animation-delay:0s"></div>
+          <div class="w-2 h-2 bg-accent-500 rounded-full animate-bounce" style="animation-delay:0.15s"></div>
+          <div class="w-2 h-2 bg-accent-500 rounded-full animate-bounce" style="animation-delay:0.3s"></div>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div id="resultContent" class="hidden space-y-4">
+        <!-- Score Overview -->
+        <div class="glass-card rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="text-white font-bold text-base"><i class="fas fa-bullseye mr-2 text-accent-500"></i>점수 분석</h3>
+            <div id="gradeLabel" class="px-3 py-1 rounded-full text-xs font-bold"></div>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- AI Score Gauge -->
+            <div class="text-center">
+              <div class="relative w-36 h-36 mx-auto">
+                <svg class="w-36 h-36 -rotate-90" viewBox="0 0 140 140">
+                  <defs>
+                    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#3b82f6"/>
+                      <stop offset="100%" stop-color="#06b6d4"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="70" cy="70" r="60" stroke="rgba(51,65,85,0.4)" stroke-width="12" fill="none"/>
+                  <circle id="aiScoreRing" cx="70" cy="70" r="60" stroke="url(#aiGrad)" stroke-width="12" fill="none"
+                    stroke-dasharray="376.99" stroke-dashoffset="376.99" stroke-linecap="round" class="gauge-ring gauge-glow" style="--glow-color:rgba(59,130,246,0.4)"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span id="aiScoreNum" class="stat-num text-4xl text-blue-400">0</span>
+                  <span class="text-[11px] text-gray-500 font-medium mt-0.5">AI 점수</span>
+                </div>
+              </div>
+              <div class="mt-3 space-y-2 max-w-[160px] mx-auto">
+                <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">수치 데이터</span><span id="detailNumbers" class="text-blue-400 font-semibold">0/40</span></div><div class="progress-track"><div id="barNumbers" class="progress-fill bg-gradient-to-r from-blue-500 to-cyan-400" style="width:0%"></div></div></div>
+                <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">출처/기간</span><span id="detailSource" class="text-blue-400 font-semibold">0/30</span></div><div class="progress-track"><div id="barSource" class="progress-fill bg-gradient-to-r from-blue-500 to-cyan-400" style="width:0%"></div></div></div>
+                <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">두괄식 구조</span><span id="detailStructure" class="text-blue-400 font-semibold">0/30</span></div><div class="progress-track"><div id="barStructure" class="progress-fill bg-gradient-to-r from-blue-500 to-cyan-400" style="width:0%"></div></div></div>
+              </div>
+            </div>
+            <!-- Human Score Gauge -->
+            <div class="text-center">
+              <div class="relative w-36 h-36 mx-auto">
+                <svg class="w-36 h-36 -rotate-90" viewBox="0 0 140 140">
+                  <defs>
+                    <linearGradient id="humanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#F97316"/>
+                      <stop offset="100%" stop-color="#f59e0b"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="70" cy="70" r="60" stroke="rgba(51,65,85,0.4)" stroke-width="12" fill="none"/>
+                  <circle id="humanScoreRing" cx="70" cy="70" r="60" stroke="url(#humanGrad)" stroke-width="12" fill="none"
+                    stroke-dasharray="376.99" stroke-dashoffset="376.99" stroke-linecap="round" class="gauge-ring gauge-glow" style="--glow-color:rgba(249,115,22,0.4)"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span id="humanScoreNum" class="stat-num text-4xl text-accent-400">0</span>
+                  <span class="text-[11px] text-gray-500 font-medium mt-0.5">인간 점수</span>
+                </div>
+              </div>
+              <div class="mt-3 space-y-2 max-w-[160px] mx-auto">
+                <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">대상 특정</span><span id="detailTarget" class="text-accent-400 font-semibold">0/30</span></div><div class="progress-track"><div id="barTarget" class="progress-fill bg-gradient-to-r from-accent-500 to-yellow-400" style="width:0%"></div></div></div>
+                <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">변화/가치</span><span id="detailValue" class="text-accent-400 font-semibold">0/40</span></div><div class="progress-track"><div id="barValue" class="progress-fill bg-gradient-to-r from-accent-500 to-yellow-400" style="width:0%"></div></div></div>
+                <div><div class="flex justify-between text-[11px] mb-1"><span class="text-gray-500">공감 묘사</span><span id="detailEmpathy" class="text-accent-400 font-semibold">0/30</span></div><div class="progress-track"><div id="barEmpathy" class="progress-fill bg-gradient-to-r from-accent-500 to-yellow-400" style="width:0%"></div></div></div>
+              </div>
+            </div>
+            <!-- Radar -->
+            <div class="col-span-2 lg:col-span-1">
+              <div class="bg-navy-900/40 rounded-2xl p-4 h-full flex flex-col">
+                <h4 class="text-xs font-semibold text-gray-400 mb-2 text-center"><i class="fas fa-chart-radar mr-1 text-purple-400"></i>6축 역량 레이더</h4>
+                <div class="flex-1 flex items-center justify-center">
+                  <canvas id="radarChart" style="max-height:220px"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="glass-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-white font-bold text-base"><i class="fas fa-clipboard-check mr-2 text-accent-500"></i>성·기·대·변 체크리스트</h3>
+            <span id="checkScore" class="text-sm font-bold text-gray-400"></span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3" id="checklistArea"></div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="glass-card rounded-2xl p-5">
+          <h3 class="text-white font-bold text-base mb-4"><i class="fas fa-lightbulb mr-2 text-yellow-400"></i>AI 개선 피드백</h3>
+          <div id="feedbackList" class="space-y-2"></div>
+        </div>
+
+        <!-- Before/After Comparison -->
+        <div class="glass-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-white font-bold text-base"><i class="fas fa-right-left mr-2 text-accent-500"></i>원문 vs 교정문 비교</h3>
+            <button onclick="copyRevised()" id="copyBtn" class="flex items-center gap-1.5 px-4 py-2 bg-accent-500/10 text-accent-400 rounded-xl text-sm font-medium hover:bg-accent-500/20 transition-all">
+              <i class="fas fa-copy"></i>교정문 복사
+            </button>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2 h-2 bg-red-400 rounded-full"></span>
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">원문 (Before)</span>
+              </div>
+              <div id="beforeText" class="bg-navy-950/50 rounded-xl p-4 text-sm text-gray-400 leading-relaxed whitespace-pre-wrap border border-gray-800/50 max-h-[300px] overflow-y-auto"></div>
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">교정문 (After)</span>
+              </div>
+              <div id="revisedText" class="bg-navy-950/50 rounded-xl p-4 text-sm text-gray-200 leading-relaxed whitespace-pre-wrap border border-green-500/10 max-h-[300px] overflow-y-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB: HISTORY ===== -->
+<div id="panel-history" class="hidden">
+  <div class="glass-card rounded-2xl p-6">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
+      <h3 class="text-white font-bold text-lg"><i class="fas fa-clock-rotate-left mr-2 text-accent-500"></i>교정 이력</h3>
+      <select id="historyFilter" onchange="loadHistory()" class="input-field px-4 py-2 text-sm min-w-[160px]">
+        <option value="">전체 카테고리</option>
+      </select>
+    </div>
+    <div id="historyList" class="space-y-3">
+      <div class="flex flex-col items-center justify-center py-16 text-gray-500">
+        <div class="w-16 h-16 rounded-2xl bg-navy-800/50 flex items-center justify-center mb-4"><i class="fas fa-inbox text-2xl text-gray-600"></i></div>
+        <p class="font-medium">교정 이력이 없습니다</p>
+        <p class="text-xs text-gray-600 mt-1">글쓰기 분석을 시작하면 이력이 쌓입니다</p>
+      </div>
+    </div>
+    <div id="loadMoreArea" class="hidden text-center mt-5">
+      <button onclick="loadMoreHistory()" class="px-8 py-2.5 rounded-xl bg-navy-700/50 text-gray-300 text-sm font-medium hover:bg-navy-600/50 transition-all border border-gray-700/50">
+        <i class="fas fa-chevron-down mr-2"></i>더 보기
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB: STATS ===== -->
+<div id="panel-stats" class="hidden">
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+    <div class="glass-card rounded-2xl p-5 text-center relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-20 h-20 bg-accent-500/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+      <div class="relative">
+        <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-accent-500/10 flex items-center justify-center"><i class="fas fa-pen-to-square text-accent-500 text-lg"></i></div>
+        <div class="stat-num text-4xl text-accent-500 mb-1" id="statTotal">0</div>
+        <div class="text-xs text-gray-500 font-medium">총 분석 횟수</div>
+      </div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 text-center relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+      <div class="relative">
+        <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-blue-500/10 flex items-center justify-center"><i class="fas fa-robot text-blue-400 text-lg"></i></div>
+        <div class="stat-num text-4xl text-blue-400 mb-1" id="statAvgAI">0</div>
+        <div class="text-xs text-gray-500 font-medium">평균 AI 점수</div>
+      </div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 text-center relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-20 h-20 bg-orange-500/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+      <div class="relative">
+        <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-accent-500/10 flex items-center justify-center"><i class="fas fa-heart text-accent-400 text-lg"></i></div>
+        <div class="stat-num text-4xl text-accent-400 mb-1" id="statAvgHuman">0</div>
+        <div class="text-xs text-gray-500 font-medium">평균 인간 점수</div>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="glass-card rounded-2xl p-5">
+      <h3 class="text-white font-bold text-base mb-4"><i class="fas fa-chart-line mr-2 text-accent-500"></i>점수 추이 (최근 10건)</h3>
+      <canvas id="trendChart" height="220"></canvas>
+    </div>
+    <div class="glass-card rounded-2xl p-5">
+      <h3 class="text-white font-bold text-base mb-4"><i class="fas fa-chart-bar mr-2 text-accent-500"></i>카테고리별 평균</h3>
+      <canvas id="categoryChart" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB: SETTINGS ===== -->
+<div id="panel-settings" class="hidden">
+  <div class="max-w-2xl mx-auto space-y-5">
+    <div class="glass-card rounded-2xl p-6">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-12 h-12 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg shadow-accent-500/20">
+          <i class="fas fa-key text-white text-lg"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-white leading-tight">WriteScope</h1>
-          <p class="text-[10px] text-gray-500 leading-tight">Dual Writing Assistant</p>
+          <h3 class="text-white font-bold text-lg">AI API 키 설정</h3>
+          <p class="text-xs text-gray-400">API 키를 등록하여 AI 분석 기능을 활성화합니다</p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
-        <span id="userBadge" class="text-sm text-gray-400"><i class="fas fa-user mr-1"></i><span id="displayNickname"></span></span>
-        <button onclick="logout()" class="text-xs text-gray-500 hover:text-gray-300 transition-colors"><i class="fas fa-sign-out-alt"></i></button>
-      </div>
-    </div>
-  </header>
-
-  <!-- 탭 네비게이션 -->
-  <div class="max-w-7xl mx-auto px-4 mt-4">
-    <div class="flex gap-2 overflow-x-auto pb-2">
-      <button onclick="switchTab('write')" id="tab-write" class="tab-active px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all">
-        <i class="fas fa-edit mr-1.5"></i>글쓰기 분석
-      </button>
-      <button onclick="switchTab('history')" id="tab-history" class="tab-inactive px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all">
-        <i class="fas fa-history mr-1.5"></i>교정 이력
-      </button>
-      <button onclick="switchTab('stats')" id="tab-stats" class="tab-inactive px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all">
-        <i class="fas fa-chart-bar mr-1.5"></i>통계 대시보드
-      </button>
-      <button onclick="switchTab('settings')" id="tab-settings" class="tab-inactive px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all">
-        <i class="fas fa-cog mr-1.5"></i>설정
-      </button>
-    </div>
-  </div>
-
-  <!-- 탭 콘텐츠 영역 -->
-  <main class="max-w-7xl mx-auto px-4 py-4">
-
-    <!-- ===== 탭1: 글쓰기 분석 ===== -->
-    <div id="panel-write" class="fade-in">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <!-- 좌: 입력 영역 -->
-        <div class="glass rounded-2xl p-5">
-          <h3 class="text-white font-semibold mb-3"><i class="fas fa-keyboard mr-2 text-accent-500"></i>원문 입력</h3>
-          <!-- 카테고리 & 어조 -->
-          <div class="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label class="text-xs text-gray-400 mb-1 block">카테고리</label>
-              <select id="categorySelect" class="w-full px-3 py-2 bg-navy-900 border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-accent-500 transition-colors">
-                <option value="">선택 안함</option>
-              </select>
+      <div id="apiKeyAlert" class="hidden mb-4 px-4 py-3 rounded-xl text-sm"></div>
+      <!-- Gemini -->
+      <div class="bg-navy-900/40 rounded-2xl p-5 mb-3 border border-gray-800/50">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center">
+              <i class="fas fa-gem text-blue-400"></i>
             </div>
             <div>
-              <label class="text-xs text-gray-400 mb-1 block">어조</label>
-              <select id="toneSelect" class="w-full px-3 py-2 bg-navy-900 border border-gray-700 rounded-lg text-sm text-gray-200 focus:border-accent-500 transition-colors">
-                <option value="">자동</option>
-                <option value="전문적">전문적</option>
-                <option value="친근한">친근한</option>
-                <option value="설득적">설득적</option>
-                <option value="감성적">감성적</option>
-                <option value="유머러스">유머러스</option>
-              </select>
+              <span class="text-sm font-semibold text-white">Google Gemini 2.5 Flash</span>
+              <span id="geminiStatus" class="ml-2 text-[11px] px-2.5 py-0.5 rounded-full bg-gray-700/50 text-gray-400">미등록</span>
+              <p class="text-[11px] text-gray-500 mt-0.5">가장 빠르고 효율적인 AI 엔진</p>
             </div>
           </div>
-          <div class="relative">
-            <textarea id="inputText" rows="14" maxlength="3000" placeholder="분석할 글을 입력하세요... (최대 3,000자)"
-                      class="w-full px-4 py-3 bg-navy-900 border border-gray-700 rounded-xl text-gray-200 text-sm leading-relaxed resize-none transition-colors"></textarea>
-            <div class="absolute bottom-3 right-3 text-xs text-gray-500"><span id="charCount">0</span>/3,000</div>
-          </div>
-          <button onclick="analyzeText()" id="analyzeBtn"
-                  class="w-full mt-3 py-3 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-semibold rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all glow-orange disabled:opacity-50 disabled:cursor-not-allowed">
-            <i class="fas fa-magic mr-2"></i>이중 글쓰기 분석 시작
+          <button onclick="toggleKeyInput('gemini')" class="w-9 h-9 rounded-lg bg-navy-700/50 flex items-center justify-center text-gray-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all">
+            <i class="fas fa-chevron-down text-xs"></i>
           </button>
         </div>
-
-        <!-- 우: 결과 영역 -->
-        <div class="glass rounded-2xl p-5">
-          <h3 class="text-white font-semibold mb-3"><i class="fas fa-chart-radar mr-2 text-accent-500"></i>분석 결과</h3>
-          <!-- 결과 없을 때 -->
-          <div id="resultPlaceholder" class="flex flex-col items-center justify-center h-[420px] text-gray-500">
-            <i class="fas fa-search-plus text-4xl mb-4 text-gray-600"></i>
-            <p class="text-sm">왼쪽에 글을 입력하고 분석을 시작하세요</p>
-            <p class="text-xs mt-1 text-gray-600">성·기·대·변 공식으로 AI + 인간 점수를 진단합니다</p>
+        <div id="geminiKeyInput" class="hidden mt-4 space-y-3">
+          <div class="relative">
+            <input id="geminiKeyField" type="password" placeholder="AIza... 형식의 Gemini API 키 입력"
+              class="input-field w-full px-4 py-3 pr-10 text-sm">
+            <button onclick="toggleKeyVisibility('geminiKeyField')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
+              <i class="fas fa-eye text-sm"></i>
+            </button>
           </div>
-          <!-- 로딩 -->
-          <div id="resultLoading" class="hidden flex flex-col items-center justify-center h-[420px]">
-            <div class="w-16 h-16 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin mb-4"></div>
-            <p class="text-sm text-gray-400 pulse-loading">AI가 글을 분석하고 있습니다...</p>
+          <div class="flex gap-2">
+            <button onclick="saveApiKey('gemini')" class="flex-1 py-2.5 bg-accent-500 hover:bg-accent-600 text-white text-sm font-medium rounded-xl transition-all"><i class="fas fa-save mr-1.5"></i>저장</button>
+            <button onclick="verifyApiKey('gemini')" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-all"><i class="fas fa-check-double mr-1.5"></i>검증</button>
+            <button onclick="deleteApiKey('gemini')" class="py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-xl transition-all"><i class="fas fa-trash"></i></button>
           </div>
-          <!-- 결과 표시 -->
-          <div id="resultContent" class="hidden fade-in">
-            <!-- 점수 서클 -->
-            <div class="grid grid-cols-2 gap-4 mb-4">
-              <div class="text-center">
-                <div class="relative w-28 h-28 mx-auto">
-                  <svg class="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="52" stroke="#1e293b" stroke-width="10" fill="none"/>
-                    <circle id="aiScoreRing" cx="60" cy="60" r="52" stroke="#3b82f6" stroke-width="10" fill="none"
-                            stroke-dasharray="326.73" stroke-dashoffset="326.73" stroke-linecap="round" class="score-ring"/>
-                  </svg>
-                  <div class="absolute inset-0 flex flex-col items-center justify-center">
-                    <span id="aiScoreNum" class="text-2xl font-bold text-blue-400">0</span>
-                    <span class="text-[10px] text-gray-500">AI 점수</span>
-                  </div>
-                </div>
-                <div class="mt-2 space-y-1 text-xs">
-                  <div class="flex justify-between text-gray-400"><span>수치 데이터</span><span id="detailNumbers" class="text-blue-400">0/40</span></div>
-                  <div class="flex justify-between text-gray-400"><span>출처/기간</span><span id="detailSource" class="text-blue-400">0/30</span></div>
-                  <div class="flex justify-between text-gray-400"><span>두괄식 구조</span><span id="detailStructure" class="text-blue-400">0/30</span></div>
-                </div>
-              </div>
-              <div class="text-center">
-                <div class="relative w-28 h-28 mx-auto">
-                  <svg class="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="52" stroke="#1e293b" stroke-width="10" fill="none"/>
-                    <circle id="humanScoreRing" cx="60" cy="60" r="52" stroke="#F97316" stroke-width="10" fill="none"
-                            stroke-dasharray="326.73" stroke-dashoffset="326.73" stroke-linecap="round" class="score-ring"/>
-                  </svg>
-                  <div class="absolute inset-0 flex flex-col items-center justify-center">
-                    <span id="humanScoreNum" class="text-2xl font-bold text-accent-400">0</span>
-                    <span class="text-[10px] text-gray-500">인간 점수</span>
-                  </div>
-                </div>
-                <div class="mt-2 space-y-1 text-xs">
-                  <div class="flex justify-between text-gray-400"><span>대상 특정</span><span id="detailTarget" class="text-accent-400">0/30</span></div>
-                  <div class="flex justify-between text-gray-400"><span>변화/가치</span><span id="detailValue" class="text-accent-400">0/40</span></div>
-                  <div class="flex justify-between text-gray-400"><span>공감 묘사</span><span id="detailEmpathy" class="text-accent-400">0/30</span></div>
-                </div>
-              </div>
-            </div>
-            <!-- 방사형 차트 -->
-            <div class="bg-navy-900/50 rounded-xl p-3 mb-4">
-              <canvas id="radarChart" height="180"></canvas>
-            </div>
-            <!-- 체크리스트 -->
-            <div class="bg-navy-900/50 rounded-xl p-3 mb-4">
-              <h4 class="text-xs font-semibold text-gray-400 mb-2"><i class="fas fa-clipboard-check mr-1"></i>성·기·대·변 체크리스트</h4>
-              <div class="grid grid-cols-1 gap-1.5 text-sm" id="checklistArea"></div>
-            </div>
-            <!-- 피드백 -->
-            <div class="bg-navy-900/50 rounded-xl p-3 mb-4">
-              <h4 class="text-xs font-semibold text-gray-400 mb-2"><i class="fas fa-comment-dots mr-1"></i>AI 피드백</h4>
-              <ul id="feedbackList" class="space-y-1 text-sm text-gray-300"></ul>
-            </div>
-            <!-- 교정문 -->
-            <div class="bg-navy-900/50 rounded-xl p-3">
-              <div class="flex items-center justify-between mb-2">
-                <h4 class="text-xs font-semibold text-gray-400"><i class="fas fa-magic mr-1"></i>교정된 글</h4>
-                <button onclick="copyRevised()" class="text-xs text-accent-500 hover:text-accent-400 transition-colors"><i class="fas fa-copy mr-1"></i>복사</button>
-              </div>
-              <div id="revisedText" class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap"></div>
-            </div>
+          <p class="text-[11px] text-gray-500"><i class="fas fa-circle-info mr-1 text-blue-400"></i><a href="https://aistudio.google.com/apikey" target="_blank" class="text-accent-500 hover:underline">Google AI Studio</a>에서 무료로 발급받을 수 있습니다.</p>
+        </div>
+      </div>
+      <!-- OpenAI -->
+      <div class="bg-navy-900/40 rounded-2xl p-5 mb-3 border border-gray-800/50 opacity-50">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center"><i class="fas fa-brain text-green-400"></i></div>
+            <div><span class="text-sm font-semibold text-white">OpenAI GPT</span><span class="ml-2 text-[11px] px-2.5 py-0.5 rounded-full bg-gray-700/50 text-gray-500">Phase 2</span></div>
           </div>
+          <i class="fas fa-lock text-gray-600"></i>
+        </div>
+      </div>
+      <!-- Claude -->
+      <div class="bg-navy-900/40 rounded-2xl p-5 border border-gray-800/50 opacity-50">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center"><i class="fas fa-robot text-purple-400"></i></div>
+            <div><span class="text-sm font-semibold text-white">Anthropic Claude</span><span class="ml-2 text-[11px] px-2.5 py-0.5 rounded-full bg-gray-700/50 text-gray-500">Phase 2</span></div>
+          </div>
+          <i class="fas fa-lock text-gray-600"></i>
         </div>
       </div>
     </div>
-
-    <!-- ===== 탭2: 교정 이력 ===== -->
-    <div id="panel-history" class="hidden fade-in">
-      <div class="glass rounded-2xl p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-white font-semibold"><i class="fas fa-history mr-2 text-accent-500"></i>교정 이력</h3>
-          <select id="historyFilter" onchange="loadHistory()" class="px-3 py-1.5 bg-navy-900 border border-gray-700 rounded-lg text-sm text-gray-300">
-            <option value="">전체 카테고리</option>
-          </select>
-        </div>
-        <div id="historyList" class="space-y-3">
-          <p class="text-center text-gray-500 py-10"><i class="fas fa-inbox text-3xl mb-3 block text-gray-600"></i>교정 이력이 없습니다</p>
-        </div>
-        <div id="loadMoreArea" class="hidden text-center mt-4">
-          <button onclick="loadMoreHistory()" class="px-6 py-2 bg-navy-700 text-gray-300 rounded-lg text-sm hover:bg-navy-600 transition-colors">더 보기</button>
-        </div>
-      </div>
+    <div class="glass-card rounded-2xl p-5">
+      <h4 class="text-sm font-bold text-white mb-3"><i class="fas fa-shield-halved mr-2 text-green-400"></i>보안 안내</h4>
+      <ul class="space-y-2 text-xs text-gray-400">
+        <li class="flex items-start gap-2.5"><i class="fas fa-lock text-green-400 mt-0.5"></i>API 키는 암호화되어 서버에 안전하게 저장됩니다</li>
+        <li class="flex items-start gap-2.5"><i class="fas fa-user-shield text-green-400 mt-0.5"></i>다른 사용자에게 절대 노출되지 않습니다</li>
+        <li class="flex items-start gap-2.5"><i class="fas fa-rotate text-green-400 mt-0.5"></i>언제든지 변경하거나 삭제할 수 있습니다</li>
+        <li class="flex items-start gap-2.5"><i class="fas fa-coins text-yellow-400 mt-0.5"></i>API 사용량에 따라 비용이 발생할 수 있습니다</li>
+      </ul>
     </div>
-
-    <!-- ===== 탭3: 통계 대시보드 ===== -->
-    <div id="panel-stats" class="hidden fade-in">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <div class="glass rounded-2xl p-5 text-center">
-          <div class="text-3xl font-bold text-accent-500" id="statTotal">0</div>
-          <div class="text-xs text-gray-400 mt-1">총 분석 횟수</div>
-        </div>
-        <div class="glass rounded-2xl p-5 text-center">
-          <div class="text-3xl font-bold text-blue-400" id="statAvgAI">0</div>
-          <div class="text-xs text-gray-400 mt-1">평균 AI 점수</div>
-        </div>
-        <div class="glass rounded-2xl p-5 text-center">
-          <div class="text-3xl font-bold text-accent-400" id="statAvgHuman">0</div>
-          <div class="text-xs text-gray-400 mt-1">평균 인간 점수</div>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="glass rounded-2xl p-5">
-          <h3 class="text-white font-semibold mb-3"><i class="fas fa-chart-line mr-2 text-accent-500"></i>점수 추이 (최근 10건)</h3>
-          <canvas id="trendChart" height="200"></canvas>
-        </div>
-        <div class="glass rounded-2xl p-5">
-          <h3 class="text-white font-semibold mb-3"><i class="fas fa-chart-pie mr-2 text-accent-500"></i>카테고리별 평균</h3>
-          <canvas id="categoryChart" height="200"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== 탭4: 설정 ===== -->
-    <div id="panel-settings" class="hidden fade-in">
-      <div class="max-w-2xl mx-auto space-y-4">
-        <!-- API 키 설정 카드 -->
-        <div class="glass rounded-2xl p-6">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center">
-              <i class="fas fa-key text-white"></i>
-            </div>
-            <div>
-              <h3 class="text-white font-semibold">AI API 키 설정</h3>
-              <p class="text-xs text-gray-400">자신의 API 키를 등록하여 사용합니다. 키는 안전하게 암호화 저장됩니다.</p>
-            </div>
-          </div>
-
-          <!-- API 키 알림 배너 -->
-          <div id="apiKeyAlert" class="hidden mb-4 px-4 py-3 rounded-xl text-sm"></div>
-
-          <!-- Gemini -->
-          <div class="bg-navy-900/60 rounded-xl p-4 mb-3 border border-gray-800">
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                  <i class="fas fa-gem text-blue-400 text-sm"></i>
-                </div>
-                <div>
-                  <span class="text-sm font-medium text-white">Google Gemini</span>
-                  <span id="geminiStatus" class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">미등록</span>
-                </div>
-              </div>
-              <button onclick="toggleKeyInput('gemini')" id="geminiToggleBtn" class="text-xs text-accent-500 hover:text-accent-400 transition-colors">
-                <i class="fas fa-edit mr-1"></i>설정
-              </button>
-            </div>
-            <div id="geminiKeyInput" class="hidden mt-3 space-y-2">
-              <div class="relative">
-                <input id="geminiKeyField" type="password" placeholder="AIza... 형식의 Gemini API 키 입력"
-                       class="w-full px-3 py-2.5 pr-10 bg-navy-800 border border-gray-700 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:border-accent-500 transition-colors">
-                <button onclick="toggleKeyVisibility('geminiKeyField')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                  <i class="fas fa-eye text-xs"></i>
-                </button>
-              </div>
-              <div class="flex gap-2">
-                <button onclick="saveApiKey('gemini')" class="flex-1 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm rounded-lg transition-colors">
-                  <i class="fas fa-save mr-1"></i>저장
-                </button>
-                <button onclick="verifyApiKey('gemini')" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
-                  <i class="fas fa-check-circle mr-1"></i>검증
-                </button>
-                <button onclick="deleteApiKey('gemini')" class="py-2 px-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-sm rounded-lg transition-colors">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-              <p class="text-xs text-gray-500">
-                <i class="fas fa-info-circle mr-1"></i>
-                <a href="https://aistudio.google.com/apikey" target="_blank" class="text-accent-500 hover:underline">Google AI Studio</a>에서 무료로 발급받을 수 있습니다.
-              </p>
-            </div>
-          </div>
-
-          <!-- OpenAI (추후 확장) -->
-          <div class="bg-navy-900/60 rounded-xl p-4 mb-3 border border-gray-800 opacity-60">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <i class="fas fa-brain text-green-400 text-sm"></i>
-                </div>
-                <div>
-                  <span class="text-sm font-medium text-white">OpenAI GPT</span>
-                  <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-500">2단계 지원 예정</span>
-                </div>
-              </div>
-              <i class="fas fa-lock text-gray-600"></i>
-            </div>
-          </div>
-
-          <!-- Claude (추후 확장) -->
-          <div class="bg-navy-900/60 rounded-xl p-4 border border-gray-800 opacity-60">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                  <i class="fas fa-robot text-purple-400 text-sm"></i>
-                </div>
-                <div>
-                  <span class="text-sm font-medium text-white">Anthropic Claude</span>
-                  <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-500">2단계 지원 예정</span>
-                </div>
-              </div>
-              <i class="fas fa-lock text-gray-600"></i>
-            </div>
-          </div>
-        </div>
-
-        <!-- 보안 안내 -->
-        <div class="glass rounded-2xl p-5">
-          <h4 class="text-sm font-semibold text-white mb-3"><i class="fas fa-shield-alt mr-2 text-green-400"></i>보안 안내</h4>
-          <ul class="space-y-2 text-xs text-gray-400">
-            <li class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-0.5"></i>API 키는 암호화되어 서버에 저장됩니다.</li>
-            <li class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-0.5"></i>API 키는 다른 사용자에게 절대 노출되지 않습니다.</li>
-            <li class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-0.5"></i>언제든지 삭제하거나 변경할 수 있습니다.</li>
-            <li class="flex items-start gap-2"><i class="fas fa-exclamation-triangle text-yellow-500 mt-0.5"></i>API 사용량에 따라 비용이 발생할 수 있습니다. 각 서비스의 요금제를 확인하세요.</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-  </main>
+  </div>
 </div>
 
+</main>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast"></div>
+
 <script>
-// ==================== App State ====================
-let currentUser = null;
-let categories = [];
-let radarChart = null;
-let trendChart = null;
-let categoryChart = null;
-let historyOffset = 0;
-let hasValidApiKey = false;
+// ==================== STATE ====================
+let currentUser=null,categories=[],radarChart=null,trendChart=null,categoryChart=null,historyOffset=0,hasValidApiKey=false,lastOriginalText='';
+const API='';
 
-const API = '';
+// ==================== TOAST ====================
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  t.className='toast '+type;
+  t.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':type==='error'?'circle-xmark':'circle-info')+' mr-2"></i>'+msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
 
-// ==================== Auth ====================
-function enterApp() {
-  const nickname = document.getElementById('nicknameInput').value.trim();
-  if (!nickname) { alert('닉네임을 입력해주세요.'); return; }
-
-  fetch(API + '/api/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nickname })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) { alert(data.error); return; }
-    currentUser = data.user;
-    document.getElementById('displayNickname').textContent = currentUser.nickname;
+// ==================== AUTH ====================
+function enterApp(){
+  const nickname=document.getElementById('nicknameInput').value.trim();
+  if(!nickname){showToast('닉네임을 입력해주세요.','error');return}
+  fetch(API+'/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nickname})})
+  .then(r=>r.json()).then(data=>{
+    if(data.error){showToast(data.error,'error');return}
+    currentUser=data.user;
+    document.getElementById('displayNickname').textContent=currentUser.nickname;
     document.getElementById('loginModal').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
     loadCategories();
     checkApiKeyOnLogin();
-  })
-  .catch(e => alert('연결 오류: ' + e.message));
+  }).catch(e=>showToast('연결 오류: '+e.message,'error'));
 }
-
-function logout() {
-  currentUser = null;
+function logout(){
+  currentUser=null;
   document.getElementById('mainApp').classList.add('hidden');
   document.getElementById('loginModal').classList.remove('hidden');
-  document.getElementById('nicknameInput').value = '';
+  document.getElementById('nicknameInput').value='';
 }
 
-// ==================== Tabs ====================
-function switchTab(tab) {
-  ['write','history','stats','settings'].forEach(t => {
-    document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
-    document.getElementById('tab-' + t).className = t === tab ? 'tab-active px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all' : 'tab-inactive px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all';
+// ==================== TABS ====================
+function switchTab(tab){
+  ['write','history','stats','settings'].forEach(t=>{
+    const panel=document.getElementById('panel-'+t);
+    const btn=document.getElementById('tab-'+t);
+    panel.classList.toggle('hidden',t!==tab);
+    if(t===tab){panel.classList.add('fade-up');btn.classList.add('active')}
+    else{btn.classList.remove('active')}
   });
-  if (tab === 'history') { historyOffset = 0; loadHistory(); }
-  if (tab === 'stats') loadStats();
-  if (tab === 'settings') loadApiKeyStatus();
+  if(tab==='history'){historyOffset=0;loadHistory()}
+  if(tab==='stats')loadStats();
+  if(tab==='settings')loadApiKeyStatus();
 }
 
-// ==================== Categories ====================
-function loadCategories() {
-  fetch(API + '/api/categories')
-  .then(r => r.json())
-  .then(data => {
-    categories = data.categories || [];
-    const sel = document.getElementById('categorySelect');
-    const filter = document.getElementById('historyFilter');
-    sel.innerHTML = '<option value="">선택 안함</option>';
-    filter.innerHTML = '<option value="">전체 카테고리</option>';
-    categories.forEach(c => {
-      sel.innerHTML += '<option value="' + c.id + '">' + c.name + '</option>';
-      filter.innerHTML += '<option value="' + c.id + '">' + c.name + '</option>';
+// ==================== CATEGORIES ====================
+function loadCategories(){
+  fetch(API+'/api/categories').then(r=>r.json()).then(data=>{
+    categories=data.categories||[];
+    const sel=document.getElementById('categorySelect');
+    const filter=document.getElementById('historyFilter');
+    sel.innerHTML='<option value="">선택 안함</option>';
+    filter.innerHTML='<option value="">전체 카테고리</option>';
+    categories.forEach(c=>{
+      sel.innerHTML+='<option value="'+c.id+'">'+c.name+'</option>';
+      filter.innerHTML+='<option value="'+c.id+'">'+c.name+'</option>';
     });
   });
 }
 
-// ==================== Analysis ====================
-document.getElementById('inputText').addEventListener('input', function() {
-  document.getElementById('charCount').textContent = this.value.length;
+// ==================== ANALYSIS ====================
+document.getElementById('inputText').addEventListener('input',function(){
+  const len=this.value.length;
+  document.getElementById('charCount').textContent=len;
+  document.getElementById('charBar').style.width=(len/3000*100)+'%';
+  if(len>2700)document.getElementById('charBar').classList.add('bg-red-500');
+  else document.getElementById('charBar').classList.remove('bg-red-500');
 });
 
-function analyzeText() {
-  const text = document.getElementById('inputText').value.trim();
-  if (!text) { alert('글을 입력해주세요.'); return; }
-  if (!currentUser) { alert('로그인이 필요합니다.'); return; }
-  if (!hasValidApiKey) {
-    if (confirm('API 키가 등록되지 않았습니다. 설정 탭으로 이동할까요?')) { switchTab('settings'); }
-    return;
-  }
-
-  const categoryId = document.getElementById('categorySelect').value;
-  const tone = document.getElementById('toneSelect').value;
-
-  const btn = document.getElementById('analyzeBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>AI 분석 중...';
-
+function analyzeText(){
+  const text=document.getElementById('inputText').value.trim();
+  if(!text){showToast('글을 입력해주세요.','error');return}
+  if(!currentUser){showToast('로그인이 필요합니다.','error');return}
+  if(!hasValidApiKey){showToast('설정 탭에서 API 키를 먼저 등록해주세요.','error');switchTab('settings');return}
+  lastOriginalText=text;
+  const categoryId=document.getElementById('categorySelect').value;
+  const tone=document.getElementById('toneSelect').value;
+  const btn=document.getElementById('analyzeBtn');
+  btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>AI 분석 중...';
   document.getElementById('resultPlaceholder').classList.add('hidden');
   document.getElementById('resultContent').classList.add('hidden');
   document.getElementById('resultLoading').classList.remove('hidden');
-
-  fetch(API + '/api/analyze', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text,
-      category_id: categoryId ? parseInt(categoryId) : null,
-      user_id: currentUser.id,
-      tone: tone || null
-    })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) { alert(data.error); return; }
+  fetch(API+'/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,category_id:categoryId?parseInt(categoryId):null,user_id:currentUser.id,tone:tone||null})})
+  .then(r=>r.json()).then(data=>{
+    if(data.error){showToast(data.error,'error');document.getElementById('resultPlaceholder').classList.remove('hidden');document.getElementById('resultLoading').classList.add('hidden');return}
     displayResult(data.result);
-  })
-  .catch(e => alert('분석 오류: ' + e.message))
-  .finally(() => {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-magic mr-2"></i>이중 글쓰기 분석 시작';
-    document.getElementById('resultLoading').classList.add('hidden');
-  });
+    showToast('분석이 완료되었습니다!','success');
+  }).catch(e=>{showToast('분석 오류: '+e.message,'error');document.getElementById('resultPlaceholder').classList.remove('hidden')})
+  .finally(()=>{btn.disabled=false;btn.innerHTML='<i class="fas fa-wand-magic-sparkles mr-2"></i>이중 글쓰기 분석';document.getElementById('resultLoading').classList.add('hidden')});
 }
 
-function displayResult(result) {
+function getGrade(score){
+  if(score>=90)return{label:'S',cls:'bg-green-500/20 text-green-300',text:'score-excellent'};
+  if(score>=75)return{label:'A',cls:'bg-lime-500/20 text-lime-300',text:'score-good'};
+  if(score>=60)return{label:'B',cls:'bg-yellow-500/20 text-yellow-300',text:'score-average'};
+  if(score>=40)return{label:'C',cls:'bg-orange-500/20 text-orange-300',text:'score-average'};
+  return{label:'D',cls:'bg-red-500/20 text-red-300',text:'score-poor'};
+}
+
+function displayResult(result){
   document.getElementById('resultContent').classList.remove('hidden');
-
-  const aiScore = result.analysis.ai_score;
-  const humanScore = result.analysis.human_score;
-  const circumference = 326.73;
-
-  // Animate score rings
-  animateScore('aiScoreNum', aiScore);
-  animateScore('humanScoreNum', humanScore);
-  document.getElementById('aiScoreRing').style.strokeDashoffset = circumference - (circumference * aiScore / 100);
-  document.getElementById('humanScoreRing').style.strokeDashoffset = circumference - (circumference * humanScore / 100);
-
-  // Details
-  const ad = result.analysis.ai_details || {};
-  const hd = result.analysis.human_details || {};
-  document.getElementById('detailNumbers').textContent = (ad.numbers||0) + '/40';
-  document.getElementById('detailSource').textContent = (ad.source||0) + '/30';
-  document.getElementById('detailStructure').textContent = (ad.structure||0) + '/30';
-  document.getElementById('detailTarget').textContent = (hd.target||0) + '/30';
-  document.getElementById('detailValue').textContent = (hd.value||0) + '/40';
-  document.getElementById('detailEmpathy').textContent = (hd.empathy||0) + '/30';
-
-  // Radar Chart
-  updateRadarChart(ad, hd);
-
+  const ai=result.analysis.ai_score,hu=result.analysis.human_score;
+  const avg=Math.round((ai+hu)/2);
+  const grade=getGrade(avg);
+  document.getElementById('gradeLabel').className='px-3 py-1 rounded-full text-xs font-bold '+grade.cls;
+  document.getElementById('gradeLabel').textContent='종합 '+grade.label+'등급 ('+avg+'점)';
+  const circumference=376.99;
+  animateScore('aiScoreNum',ai);animateScore('humanScoreNum',hu);
+  setTimeout(()=>{
+    document.getElementById('aiScoreRing').style.strokeDashoffset=circumference-(circumference*ai/100);
+    document.getElementById('humanScoreRing').style.strokeDashoffset=circumference-(circumference*hu/100);
+  },100);
+  const ad=result.analysis.ai_details||{},hd=result.analysis.human_details||{};
+  document.getElementById('detailNumbers').textContent=(ad.numbers||0)+'/40';
+  document.getElementById('detailSource').textContent=(ad.source||0)+'/30';
+  document.getElementById('detailStructure').textContent=(ad.structure||0)+'/30';
+  document.getElementById('detailTarget').textContent=(hd.target||0)+'/30';
+  document.getElementById('detailValue').textContent=(hd.value||0)+'/40';
+  document.getElementById('detailEmpathy').textContent=(hd.empathy||0)+'/30';
+  setTimeout(()=>{
+    document.getElementById('barNumbers').style.width=((ad.numbers||0)/40*100)+'%';
+    document.getElementById('barSource').style.width=((ad.source||0)/30*100)+'%';
+    document.getElementById('barStructure').style.width=((ad.structure||0)/30*100)+'%';
+    document.getElementById('barTarget').style.width=((hd.target||0)/30*100)+'%';
+    document.getElementById('barValue').style.width=((hd.value||0)/40*100)+'%';
+    document.getElementById('barEmpathy').style.width=((hd.empathy||0)/30*100)+'%';
+  },200);
+  updateRadarChart(ad,hd);
   // Checklist
-  const cl = result.checklist || {};
-  const checklistHTML = [
-    { key: 'has_numbers', label: '수치(%) 데이터 포함', icon: 'fa-hashtag' },
-    { key: 'has_source', label: '출처/측정 기간 명시', icon: 'fa-quote-right' },
-    { key: 'has_target', label: '혜택 대상(누구에게) 특정', icon: 'fa-user-check' },
-    { key: 'has_benefit', label: '변화(Benefit) 서술', icon: 'fa-arrow-up' },
-    { key: 'is_head_heavy', label: '핵심 키워드 두괄식 배치', icon: 'fa-heading' }
-  ].map(item => {
-    const pass = cl[item.key];
-    return '<div class="flex items-center gap-2 ' + (pass ? 'checklist-pass' : 'checklist-fail') + '">'
-      + '<i class="fas ' + (pass ? 'fa-check-circle' : 'fa-times-circle') + '"></i>'
-      + '<i class="fas ' + item.icon + ' text-xs opacity-50"></i>'
-      + '<span>' + item.label + '</span></div>';
+  const cl=result.checklist||{};
+  const items=[
+    {key:'has_numbers',label:'수치 데이터',desc:'%, 금액, 기간 등',icon:'fa-hashtag'},
+    {key:'has_source',label:'출처 명시',desc:'신뢰 출처, 측정 기간',icon:'fa-quote-right'},
+    {key:'has_target',label:'대상 특정',desc:'누구에게 도움?',icon:'fa-user-check'},
+    {key:'has_benefit',label:'변화 서술',desc:'어떤 변화/혜택?',icon:'fa-arrow-trend-up'},
+    {key:'is_head_heavy',label:'두괄식 배치',desc:'핵심 키워드 전면',icon:'fa-heading'}
+  ];
+  let passCount=0;
+  const checkHTML=items.map(item=>{
+    const pass=cl[item.key];if(pass)passCount++;
+    return '<div class="check-card '+(pass?'pass':'fail')+' flex items-center gap-3">'
+      +'<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 '+(pass?'bg-green-500/20':'bg-red-500/20')+'">'
+      +'<i class="fas '+(pass?'fa-check':'fa-xmark')+' '+(pass?'text-green-400':'text-red-400')+'"></i></div>'
+      +'<div><div class="text-sm font-medium '+(pass?'text-green-300':'text-red-300')+'">'+item.label+'</div>'
+      +'<div class="text-[10px] text-gray-500">'+item.desc+'</div></div></div>';
   }).join('');
-  document.getElementById('checklistArea').innerHTML = checklistHTML;
-
+  document.getElementById('checklistArea').innerHTML=checkHTML;
+  document.getElementById('checkScore').textContent=passCount+'/'+items.length+' 통과';
+  document.getElementById('checkScore').className='text-sm font-bold '+(passCount>=4?'text-green-400':passCount>=2?'text-yellow-400':'text-red-400');
   // Feedback
-  const feedbacks = result.analysis.feedback || [];
-  document.getElementById('feedbackList').innerHTML = feedbacks.map(f =>
-    '<li class="flex items-start gap-2"><i class="fas fa-lightbulb text-accent-500 mt-0.5 text-xs"></i><span>' + f + '</span></li>'
+  const feedbacks=result.analysis.feedback||[];
+  document.getElementById('feedbackList').innerHTML=feedbacks.map((f,i)=>
+    '<div class="slide-in flex items-start gap-3 p-3 rounded-xl bg-navy-900/30 border border-gray-800/30" style="animation-delay:'+(i*0.1)+'s">'
+    +'<div class="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-lightbulb text-yellow-400 text-xs"></i></div>'
+    +'<p class="text-sm text-gray-300 leading-relaxed">'+f+'</p></div>'
   ).join('');
-
-  // Revised text
-  document.getElementById('revisedText').textContent = result.revised_text || '';
+  // Before/After
+  document.getElementById('beforeText').textContent=lastOriginalText;
+  document.getElementById('revisedText').textContent=result.revised_text||'';
 }
 
-function animateScore(elId, target) {
-  const el = document.getElementById(elId);
-  let current = 0;
-  const step = Math.max(1, Math.floor(target / 30));
-  const timer = setInterval(() => {
-    current = Math.min(current + step, target);
-    el.textContent = current;
-    if (current >= target) clearInterval(timer);
-  }, 20);
-}
-
-function updateRadarChart(ai, human) {
-  const ctx = document.getElementById('radarChart').getContext('2d');
-  if (radarChart) radarChart.destroy();
-
-  radarChart = new Chart(ctx, {
-    type: 'radar',
-    data: {
-      labels: ['수치 데이터', '출처/기간', '두괄식 구조', '대상 특정', '변화/가치', '공감 묘사'],
-      datasets: [{
-        label: '종합 점수',
-        data: [
-          ((ai.numbers||0)/40)*100,
-          ((ai.source||0)/30)*100,
-          ((ai.structure||0)/30)*100,
-          ((human.target||0)/30)*100,
-          ((human.value||0)/40)*100,
-          ((human.empathy||0)/30)*100
-        ],
-        borderColor: '#a855f7',
-        backgroundColor: 'rgba(168,85,247,0.15)',
-        borderWidth: 2,
-        pointBackgroundColor: function(context) {
-          const i = context.dataIndex;
-          return i < 3 ? '#3b82f6' : '#F97316';
-        },
-        pointRadius: 5,
-        pointHoverRadius: 7
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const labels = ['수치(AI)', '출처(AI)', '구조(AI)', '대상(Human)', '가치(Human)', '공감(Human)'];
-              return labels[context.dataIndex] + ': ' + Math.round(context.raw) + '%';
-            }
-          }
-        }
-      },
-      scales: {
-        r: {
-          beginAtZero: true, max: 100,
-          grid: { color: 'rgba(148,163,184,0.15)' },
-          angleLines: { color: 'rgba(148,163,184,0.15)' },
-          pointLabels: {
-            color: function(context) {
-              return context.index < 3 ? '#60a5fa' : '#fb923c';
-            },
-            font: { size: 11, weight: '500' }
-          },
-          ticks: { display: false, stepSize: 25 }
-        }
-      }
-    }
-  });
-}
-
-function copyRevised() {
-  const text = document.getElementById('revisedText').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = event.target.closest('button');
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-check mr-1"></i>복사됨!';
-    setTimeout(() => btn.innerHTML = orig, 1500);
-  });
-}
-
-// ==================== History ====================
-function loadHistory() {
-  if (!currentUser) return;
-  historyOffset = 0;
-  const catId = document.getElementById('historyFilter').value;
-  let url = API + '/api/logs?user_id=' + currentUser.id + '&limit=10&offset=0';
-  if (catId) url += '&category_id=' + catId;
-
-  fetch(url).then(r => r.json()).then(data => {
-    const logs = data.logs || [];
-    const container = document.getElementById('historyList');
-    if (logs.length === 0) {
-      container.innerHTML = '<p class="text-center text-gray-500 py-10"><i class="fas fa-inbox text-3xl mb-3 block text-gray-600"></i>교정 이력이 없습니다</p>';
-      document.getElementById('loadMoreArea').classList.add('hidden');
-      return;
-    }
-    container.innerHTML = logs.map(renderHistoryItem).join('');
-    document.getElementById('loadMoreArea').classList.toggle('hidden', logs.length < 10);
-    historyOffset = logs.length;
-  });
-}
-
-function loadMoreHistory() {
-  const catId = document.getElementById('historyFilter').value;
-  let url = API + '/api/logs?user_id=' + currentUser.id + '&limit=10&offset=' + historyOffset;
-  if (catId) url += '&category_id=' + catId;
-
-  fetch(url).then(r => r.json()).then(data => {
-    const logs = data.logs || [];
-    const container = document.getElementById('historyList');
-    container.innerHTML += logs.map(renderHistoryItem).join('');
-    document.getElementById('loadMoreArea').classList.toggle('hidden', logs.length < 10);
-    historyOffset += logs.length;
-  });
-}
-
-function renderHistoryItem(log) {
-  const aiColor = log.ai_score >= 70 ? 'text-green-400' : log.ai_score >= 40 ? 'text-yellow-400' : 'text-red-400';
-  const humanColor = log.human_score >= 70 ? 'text-green-400' : log.human_score >= 40 ? 'text-yellow-400' : 'text-red-400';
-  return '<div class="bg-navy-900/50 rounded-xl p-4 border border-gray-800 hover:border-gray-700 transition-colors">'
-    + '<div class="flex items-center justify-between mb-2">'
-    + '<div class="flex items-center gap-2">'
-    + (log.category_name ? '<span class="px-2 py-0.5 bg-accent-500/20 text-accent-400 text-xs rounded-full">' + log.category_name + '</span>' : '')
-    + '<span class="text-xs text-gray-500">' + (log.created_at || '') + '</span>'
-    + '</div>'
-    + '<div class="flex gap-3 text-sm">'
-    + '<span class="' + aiColor + '"><i class="fas fa-robot mr-1"></i>' + log.ai_score + '</span>'
-    + '<span class="' + humanColor + '"><i class="fas fa-heart mr-1"></i>' + log.human_score + '</span>'
-    + '</div></div>'
-    + '<p class="text-xs text-gray-400 line-clamp-2">' + (log.original_text || '').substring(0, 150) + '...</p>'
-    + '</div>';
-}
-
-// ==================== Stats ====================
-function loadStats() {
-  if (!currentUser) return;
-
-  fetch(API + '/api/stats?user_id=' + currentUser.id)
-  .then(r => r.json())
-  .then(data => {
-    const s = data.stats || {};
-    document.getElementById('statTotal').textContent = s.total_writes || 0;
-    document.getElementById('statAvgAI').textContent = s.avg_ai_score || 0;
-    document.getElementById('statAvgHuman').textContent = s.avg_human_score || 0;
-
-    // Trend chart
-    const trend = (data.recentTrend || []).reverse();
-    updateTrendChart(trend);
-
-    // Category chart
-    updateCategoryChart(data.categoryStats || []);
-  });
-}
-
-function updateTrendChart(trend) {
-  const ctx = document.getElementById('trendChart').getContext('2d');
-  if (trendChart) trendChart.destroy();
-
-  trendChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: trend.map((_, i) => '#' + (i + 1)),
-      datasets: [{
-        label: 'AI 점수',
-        data: trend.map(t => t.ai_score),
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59,130,246,0.1)',
-        tension: 0.4, fill: true, pointRadius: 4
-      }, {
-        label: '인간 점수',
-        data: trend.map(t => t.human_score),
-        borderColor: '#F97316',
-        backgroundColor: 'rgba(249,115,22,0.1)',
-        tension: 0.4, fill: true, pointRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#94a3b8' } } },
-      scales: {
-        x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.08)' } },
-        y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.08)' } }
-      }
-    }
-  });
-}
-
-function updateCategoryChart(catStats) {
-  const ctx = document.getElementById('categoryChart').getContext('2d');
-  if (categoryChart) categoryChart.destroy();
-
-  if (catStats.length === 0) {
-    ctx.font = '14px Noto Sans KR';
-    ctx.fillStyle = '#64748b';
-    ctx.textAlign = 'center';
-    ctx.fillText('아직 데이터가 없습니다', ctx.canvas.width / 2, ctx.canvas.height / 2);
-    return;
+function animateScore(elId,target){
+  const el=document.getElementById(elId);let current=0;
+  const duration=1200,startTime=performance.now();
+  function update(time){
+    const elapsed=time-startTime;const progress=Math.min(elapsed/duration,1);
+    const eased=1-Math.pow(1-progress,3);
+    current=Math.round(eased*target);el.textContent=current;
+    if(progress<1)requestAnimationFrame(update);
   }
+  requestAnimationFrame(update);
+}
 
-  categoryChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: catStats.map(c => c.name),
-      datasets: [{
-        label: '평균 AI',
-        data: catStats.map(c => c.avg_ai),
-        backgroundColor: 'rgba(59,130,246,0.7)',
-        borderRadius: 4
-      }, {
-        label: '평균 인간',
-        data: catStats.map(c => c.avg_human),
-        backgroundColor: 'rgba(249,115,22,0.7)',
-        borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#94a3b8' } } },
-      scales: {
-        x: { ticks: { color: '#64748b' }, grid: { display: false } },
-        y: { min: 0, max: 100, ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.08)' } }
-      }
-    }
+function updateRadarChart(ai,human){
+  const ctx=document.getElementById('radarChart').getContext('2d');
+  if(radarChart)radarChart.destroy();
+  radarChart=new Chart(ctx,{type:'radar',data:{
+    labels:['수치 데이터','출처/기간','두괄식 구조','대상 특정','변화/가치','공감 묘사'],
+    datasets:[{
+      label:'종합',
+      data:[((ai.numbers||0)/40)*100,((ai.source||0)/30)*100,((ai.structure||0)/30)*100,((human.target||0)/30)*100,((human.value||0)/40)*100,((human.empathy||0)/30)*100],
+      borderColor:'#a855f7',backgroundColor:'rgba(168,85,247,0.1)',borderWidth:2,
+      pointBackgroundColor:function(ctx){return ctx.dataIndex<3?'#3b82f6':'#F97316'},
+      pointBorderColor:function(ctx){return ctx.dataIndex<3?'rgba(59,130,246,0.3)':'rgba(249,115,22,0.3)'},
+      pointRadius:5,pointHoverRadius:8,pointBorderWidth:3
+    }]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{
+    backgroundColor:'rgba(15,23,42,0.9)',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleFont:{family:'Noto Sans KR'},bodyFont:{family:'Noto Sans KR'},
+    callbacks:{label:function(ctx){const l=['수치(AI)','출처(AI)','구조(AI)','대상(Human)','가치(Human)','공감(Human)'];return l[ctx.dataIndex]+': '+Math.round(ctx.raw)+'%'}}
+  }},scales:{r:{beginAtZero:true,max:100,grid:{color:'rgba(148,163,184,0.08)'},angleLines:{color:'rgba(148,163,184,0.08)'},
+    pointLabels:{color:function(ctx){return ctx.index<3?'#60a5fa':'#fb923c'},font:{size:11,weight:'600',family:'Noto Sans KR'}},
+    ticks:{display:false,stepSize:25}}}}});
+}
+
+function copyRevised(){
+  const text=document.getElementById('revisedText').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.getElementById('copyBtn');
+    btn.innerHTML='<i class="fas fa-check"></i>복사 완료!';btn.classList.add('bg-green-500/20','text-green-400');
+    setTimeout(()=>{btn.innerHTML='<i class="fas fa-copy"></i>교정문 복사';btn.classList.remove('bg-green-500/20','text-green-400')},2000);
+    showToast('교정문이 클립보드에 복사되었습니다','success');
   });
 }
 
-// ==================== API Key Management ====================
-function checkApiKeyOnLogin() {
-  fetch(API + '/api/keys?user_id=' + currentUser.id)
-  .then(r => r.json())
-  .then(data => {
-    const keys = data.keys || [];
-    const gemini = keys.find(k => k.provider === 'gemini');
-    if (gemini && gemini.is_valid) {
-      hasValidApiKey = true;
-    } else {
-      hasValidApiKey = false;
-      // 첫 로그인 시 API 키 미등록이면 안내
-      showApiKeyBanner();
+// ==================== HISTORY ====================
+function loadHistory(){
+  if(!currentUser)return;historyOffset=0;
+  const catId=document.getElementById('historyFilter').value;
+  let url=API+'/api/logs?user_id='+currentUser.id+'&limit=10&offset=0';
+  if(catId)url+='&category_id='+catId;
+  fetch(url).then(r=>r.json()).then(data=>{
+    const logs=data.logs||[];const container=document.getElementById('historyList');
+    if(logs.length===0){
+      container.innerHTML='<div class="flex flex-col items-center justify-center py-16 text-gray-500"><div class="w-16 h-16 rounded-2xl bg-navy-800/50 flex items-center justify-center mb-4"><i class="fas fa-inbox text-2xl text-gray-600"></i></div><p class="font-medium">교정 이력이 없습니다</p><p class="text-xs text-gray-600 mt-1">글쓰기 분석을 시작하면 이력이 쌓입니다</p></div>';
+      document.getElementById('loadMoreArea').classList.add('hidden');return;
     }
+    container.innerHTML=logs.map(renderHistoryItem).join('');
+    document.getElementById('loadMoreArea').classList.toggle('hidden',logs.length<10);historyOffset=logs.length;
   });
 }
-
-function showApiKeyBanner() {
-  const analyzeBtn = document.getElementById('analyzeBtn');
-  if (analyzeBtn && !hasValidApiKey) {
-    const banner = document.createElement('div');
-    banner.id = 'apiKeyBanner';
-    banner.className = 'mt-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-300 flex items-center justify-between';
-    banner.innerHTML = '<div><i class="fas fa-exclamation-triangle mr-2"></i>분석을 시작하려면 설정 탭에서 API 키를 먼저 등록해주세요.</div>'
-      + '<button onclick="switchTab(\\'settings\\')" class="ml-3 px-3 py-1 bg-accent-500 text-white rounded-lg text-xs hover:bg-accent-600 whitespace-nowrap">설정 이동</button>';
-    const existing = document.getElementById('apiKeyBanner');
-    if (existing) existing.remove();
-    analyzeBtn.parentNode.insertBefore(banner, analyzeBtn.nextSibling);
-  }
-}
-
-function loadApiKeyStatus() {
-  if (!currentUser) return;
-  fetch(API + '/api/keys?user_id=' + currentUser.id)
-  .then(r => r.json())
-  .then(data => {
-    const keys = data.keys || [];
-    const gemini = keys.find(k => k.provider === 'gemini');
-    const statusEl = document.getElementById('geminiStatus');
-    if (gemini) {
-      if (gemini.is_valid) {
-        statusEl.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400';
-        statusEl.textContent = '등록됨';
-        hasValidApiKey = true;
-        // 배너 제거
-        const banner = document.getElementById('apiKeyBanner');
-        if (banner) banner.remove();
-      } else {
-        statusEl.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400';
-        statusEl.textContent = '유효하지 않음';
-        hasValidApiKey = false;
-      }
-    } else {
-      statusEl.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400';
-      statusEl.textContent = '미등록';
-      hasValidApiKey = false;
-    }
+function loadMoreHistory(){
+  const catId=document.getElementById('historyFilter').value;
+  let url=API+'/api/logs?user_id='+currentUser.id+'&limit=10&offset='+historyOffset;
+  if(catId)url+='&category_id='+catId;
+  fetch(url).then(r=>r.json()).then(data=>{
+    const logs=data.logs||[];
+    document.getElementById('historyList').innerHTML+=logs.map(renderHistoryItem).join('');
+    document.getElementById('loadMoreArea').classList.toggle('hidden',logs.length<10);historyOffset+=logs.length;
   });
 }
+function renderHistoryItem(log){
+  const aiG=getGrade(log.ai_score),huG=getGrade(log.human_score);
+  return '<div class="glass-card rounded-2xl p-4 fade-up">'
+    +'<div class="flex items-center justify-between mb-3">'
+    +'<div class="flex items-center gap-2 flex-wrap">'
+    +(log.category_name?'<span class="px-2.5 py-1 bg-accent-500/10 text-accent-400 text-[11px] rounded-lg font-medium">'+log.category_name+'</span>':'')
+    +'<span class="text-[11px] text-gray-500">'+formatDate(log.created_at)+'</span></div>'
+    +'<div class="flex gap-2">'
+    +'<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold '+aiG.cls+'"><i class="fas fa-robot mr-1"></i>'+log.ai_score+'</span>'
+    +'<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold '+huG.cls+'"><i class="fas fa-heart mr-1"></i>'+log.human_score+'</span>'
+    +'</div></div>'
+    +'<p class="text-xs text-gray-400 leading-relaxed line-clamp-2">'+(log.original_text||'').substring(0,200)+'</p>'
+    +(log.revised_text?'<div class="mt-2 pt-2 border-t border-gray-800/50"><p class="text-xs text-gray-300 leading-relaxed line-clamp-2"><i class="fas fa-wand-magic-sparkles text-accent-500 mr-1"></i>'+(log.revised_text||'').substring(0,200)+'</p></div>':'')
+    +'</div>';
+}
+function formatDate(d){if(!d)return'';try{return d.replace('T',' ').substring(0,16)}catch(e){return d}}
 
-function toggleKeyInput(provider) {
-  const el = document.getElementById(provider + 'KeyInput');
-  el.classList.toggle('hidden');
+// ==================== STATS ====================
+function loadStats(){
+  if(!currentUser)return;
+  fetch(API+'/api/stats?user_id='+currentUser.id).then(r=>r.json()).then(data=>{
+    const s=data.stats||{};
+    animateCounter('statTotal',s.total_writes||0);
+    animateCounter('statAvgAI',s.avg_ai_score||0);
+    animateCounter('statAvgHuman',s.avg_human_score||0);
+    updateTrendChart((data.recentTrend||[]).reverse());
+    updateCategoryChart(data.categoryStats||[]);
+  });
+}
+function animateCounter(id,target){
+  const el=document.getElementById(id);let c=0;
+  const dur=800,start=performance.now();
+  function upd(t){const p=Math.min((t-start)/dur,1);const e=1-Math.pow(1-p,3);c=Math.round(e*target);el.textContent=c;if(p<1)requestAnimationFrame(upd)}
+  requestAnimationFrame(upd);
+}
+function updateTrendChart(trend){
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  if(trendChart)trendChart.destroy();
+  trendChart=new Chart(ctx,{type:'line',data:{
+    labels:trend.map((_,i)=>'#'+(i+1)),
+    datasets:[{label:'AI 점수',data:trend.map(t=>t.ai_score),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',tension:0.4,fill:true,pointRadius:5,pointBackgroundColor:'#3b82f6',pointBorderColor:'#0f172a',pointBorderWidth:2},
+    {label:'인간 점수',data:trend.map(t=>t.human_score),borderColor:'#F97316',backgroundColor:'rgba(249,115,22,0.08)',tension:0.4,fill:true,pointRadius:5,pointBackgroundColor:'#F97316',pointBorderColor:'#0f172a',pointBorderWidth:2}]
+  },options:{responsive:true,plugins:{legend:{labels:{color:'#94a3b8',usePointStyle:true,pointStyle:'circle',padding:20,font:{family:'Noto Sans KR'}}}},
+    scales:{x:{ticks:{color:'#475569'},grid:{color:'rgba(148,163,184,0.06)'}},y:{min:0,max:100,ticks:{color:'#475569',stepSize:25},grid:{color:'rgba(148,163,184,0.06)'}}}}});
+}
+function updateCategoryChart(catStats){
+  const ctx=document.getElementById('categoryChart').getContext('2d');
+  if(categoryChart)categoryChart.destroy();
+  if(!catStats.length){ctx.font='500 14px Noto Sans KR';ctx.fillStyle='#475569';ctx.textAlign='center';ctx.fillText('아직 데이터가 없습니다',ctx.canvas.width/2,ctx.canvas.height/2);return}
+  categoryChart=new Chart(ctx,{type:'bar',data:{
+    labels:catStats.map(c=>c.name),
+    datasets:[{label:'AI',data:catStats.map(c=>c.avg_ai),backgroundColor:'rgba(59,130,246,0.6)',borderColor:'#3b82f6',borderWidth:1,borderRadius:6,borderSkipped:false},
+    {label:'인간',data:catStats.map(c=>c.avg_human),backgroundColor:'rgba(249,115,22,0.6)',borderColor:'#F97316',borderWidth:1,borderRadius:6,borderSkipped:false}]
+  },options:{responsive:true,plugins:{legend:{labels:{color:'#94a3b8',usePointStyle:true,pointStyle:'circle',padding:20,font:{family:'Noto Sans KR'}}}},
+    scales:{x:{ticks:{color:'#475569'},grid:{display:false}},y:{min:0,max:100,ticks:{color:'#475569',stepSize:25},grid:{color:'rgba(148,163,184,0.06)'}}}}});
 }
 
-function toggleKeyVisibility(fieldId) {
-  const field = document.getElementById(fieldId);
-  const btn = field.nextElementSibling;
-  if (field.type === 'password') {
-    field.type = 'text';
-    btn.innerHTML = '<i class="fas fa-eye-slash text-xs"></i>';
-  } else {
-    field.type = 'password';
-    btn.innerHTML = '<i class="fas fa-eye text-xs"></i>';
-  }
+// ==================== API KEYS ====================
+function checkApiKeyOnLogin(){
+  fetch(API+'/api/keys?user_id='+currentUser.id).then(r=>r.json()).then(data=>{
+    const keys=data.keys||[];const gemini=keys.find(k=>k.provider==='gemini');
+    if(gemini&&gemini.is_valid){hasValidApiKey=true;document.getElementById('apiKeyBanner').classList.add('hidden')}
+    else{hasValidApiKey=false;document.getElementById('apiKeyBanner').classList.remove('hidden')}
+  });
 }
-
-function showAlert(msg, type) {
-  const el = document.getElementById('apiKeyAlert');
-  el.classList.remove('hidden');
-  el.className = 'mb-4 px-4 py-3 rounded-xl text-sm ' +
-    (type === 'success' ? 'bg-green-500/10 border border-green-500/30 text-green-300' :
-     type === 'error' ? 'bg-red-500/10 border border-red-500/30 text-red-300' :
-     'bg-blue-500/10 border border-blue-500/30 text-blue-300');
-  el.innerHTML = '<i class="fas fa-' + (type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle') + ' mr-2"></i>' + msg;
-  setTimeout(() => el.classList.add('hidden'), 5000);
+function loadApiKeyStatus(){
+  if(!currentUser)return;
+  fetch(API+'/api/keys?user_id='+currentUser.id).then(r=>r.json()).then(data=>{
+    const keys=data.keys||[];const gemini=keys.find(k=>k.provider==='gemini');const el=document.getElementById('geminiStatus');
+    if(gemini){
+      if(gemini.is_valid){el.className='ml-2 text-[11px] px-2.5 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium';el.textContent='활성';hasValidApiKey=true;document.getElementById('apiKeyBanner').classList.add('hidden')}
+      else{el.className='ml-2 text-[11px] px-2.5 py-0.5 rounded-full bg-red-500/15 text-red-400 font-medium';el.textContent='유효하지 않음';hasValidApiKey=false}
+    }else{el.className='ml-2 text-[11px] px-2.5 py-0.5 rounded-full bg-gray-700/50 text-gray-400';el.textContent='미등록';hasValidApiKey=false}
+  });
 }
-
-function saveApiKey(provider) {
-  const field = document.getElementById(provider + 'KeyField');
-  const key = field.value.trim();
-  if (!key) { showAlert('API 키를 입력해주세요.', 'error'); return; }
-
-  fetch(API + '/api/keys', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: currentUser.id, provider, api_key: key })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) { showAlert(data.error, 'error'); return; }
-    showAlert('API 키가 저장되었습니다. 검증 버튼으로 유효성을 확인하세요.', 'success');
-    field.value = '';
-    loadApiKeyStatus();
-  })
-  .catch(e => showAlert('저장 오류: ' + e.message, 'error'));
+function toggleKeyInput(p){document.getElementById(p+'KeyInput').classList.toggle('hidden')}
+function toggleKeyVisibility(id){const f=document.getElementById(id);const b=f.nextElementSibling;if(f.type==='password'){f.type='text';b.innerHTML='<i class="fas fa-eye-slash text-sm"></i>'}else{f.type='password';b.innerHTML='<i class="fas fa-eye text-sm"></i>'}}
+function showAlert(msg,type){const el=document.getElementById('apiKeyAlert');el.classList.remove('hidden');el.className='mb-4 px-4 py-3 rounded-xl text-sm flex items-center gap-2 '+(type==='success'?'bg-green-500/10 border border-green-500/20 text-green-300':type==='error'?'bg-red-500/10 border border-red-500/20 text-red-300':'bg-blue-500/10 border border-blue-500/20 text-blue-300');el.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':type==='error'?'circle-xmark':'circle-info')+'"></i>'+msg;setTimeout(()=>el.classList.add('hidden'),5000)}
+function saveApiKey(p){
+  const f=document.getElementById(p+'KeyField');const key=f.value.trim();
+  if(!key){showAlert('API 키를 입력해주세요.','error');return}
+  fetch(API+'/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser.id,provider:p,api_key:key})})
+  .then(r=>r.json()).then(data=>{if(data.error){showAlert(data.error,'error');return}showAlert('API 키가 저장되었습니다. 검증 버튼을 눌러주세요.','success');f.value='';loadApiKeyStatus()}).catch(e=>showAlert('저장 오류: '+e.message,'error'));
 }
-
-function verifyApiKey(provider) {
-  showAlert('API 키를 검증 중입니다...', 'info');
-  fetch(API + '/api/keys/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: currentUser.id, provider })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.valid) {
-      showAlert('API 키가 정상적으로 작동합니다!', 'success');
-    } else {
-      showAlert('API 키 검증 실패: ' + (data.error || '알 수 없는 오류'), 'error');
-    }
-    loadApiKeyStatus();
-  })
-  .catch(e => showAlert('검증 오류: ' + e.message, 'error'));
+function verifyApiKey(p){
+  showAlert('API 키를 검증하고 있습니다...','info');
+  fetch(API+'/api/keys/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser.id,provider:p})})
+  .then(r=>r.json()).then(data=>{if(data.valid){showAlert('API 키가 정상 작동합니다!','success');showToast('API 키 검증 성공!','success')}else{showAlert('검증 실패: '+(data.error||'알 수 없는 오류'),'error')}loadApiKeyStatus()}).catch(e=>showAlert('검증 오류: '+e.message,'error'));
 }
-
-function deleteApiKey(provider) {
-  if (!confirm('이 API 키를 삭제하시겠습니까?')) return;
-  fetch(API + '/api/keys', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: currentUser.id, provider })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) { showAlert(data.error, 'error'); return; }
-    showAlert('API 키가 삭제되었습니다.', 'success');
-    hasValidApiKey = false;
-    loadApiKeyStatus();
-  })
-  .catch(e => showAlert('삭제 오류: ' + e.message, 'error'));
+function deleteApiKey(p){
+  if(!confirm('이 API 키를 삭제하시겠습니까?'))return;
+  fetch(API+'/api/keys',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser.id,provider:p})})
+  .then(r=>r.json()).then(data=>{if(data.error){showAlert(data.error,'error');return}showAlert('API 키가 삭제되었습니다.','success');hasValidApiKey=false;loadApiKeyStatus();document.getElementById('apiKeyBanner').classList.remove('hidden')}).catch(e=>showAlert('삭제 오류: '+e.message,'error'));
 }
 </script>
 </body>
