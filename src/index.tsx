@@ -136,16 +136,10 @@ app.post('/api/keys/verify', async (c) => {
 
   try {
     if (provider === 'gemini') {
+      // 모델 목록 조회로 키 유효성 검증 (가볍고 안정적)
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Hello' }] }],
-            generationConfig: { maxOutputTokens: 10 }
-          })
-        }
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+        { method: 'GET' }
       )
       if (!res.ok) {
         await c.env.DB.prepare(
@@ -354,7 +348,7 @@ ${userTone ? `## 사용자 지정 어조: ${userTone}\n` : ''}
 }
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
 
   const response = await fetch(url, {
     method: 'POST',
