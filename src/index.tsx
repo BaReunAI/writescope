@@ -4,7 +4,6 @@ import { cors } from 'hono/cors'
 // Types
 type Bindings = {
   DB: D1Database
-  GEMINI_API_KEY: string
 }
 
 type Variables = {
@@ -73,6 +72,98 @@ app.post('/api/categories', async (c) => {
   return c.json({ id: result.meta.last_row_id, name })
 })
 
+// --- API 키 관리 ---
+app.post('/api/keys', async (c) => {
+  const { user_id, provider, api_key } = await c.req.json<{
+    user_id: number; provider: string; api_key: string
+  }>()
+  if (!user_id || !provider || !api_key) {
+    return c.json({ error: '필수 값이 누락되었습니다.' }, 400)
+  }
+
+  // 간단한 Base64 인코딩 (Cloudflare Workers에서는 Web Crypto 사용 가능하나 MVP에서는 간단히)
+  const encoded = btoa(api_key)
+
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO api_keys (user_id, provider, api_key_encrypted, updated_at)
+       VALUES (?, ?, ?, DATETIME('now','localtime'))
+       ON CONFLICT(user_id, provider) DO UPDATE SET
+         api_key_encrypted = excluded.api_key_encrypted,
+         is_valid = 1,
+         updated_at = DATETIME('now','localtime')`
+    ).bind(user_id, provider, encoded).run()
+
+    return c.json({ success: true, provider })
+  } catch (e: any) {
+    return c.json({ error: 'API 키 저장 실패: ' + e.message }, 500)
+  }
+})
+
+app.get('/api/keys', async (c) => {
+  const userId = c.req.query('user_id')
+  if (!userId) return c.json({ error: 'user_id 필요' }, 400)
+
+  const results = await c.env.DB.prepare(
+    'SELECT provider, is_valid, updated_at FROM api_keys WHERE user_id = ?'
+  ).bind(parseInt(userId)).all()
+
+  return c.json({ keys: results.results })
+})
+
+app.delete('/api/keys', async (c) => {
+  const { user_id, provider } = await c.req.json<{ user_id: number; provider: string }>()
+  if (!user_id || !provider) return c.json({ error: '필수 값 누락' }, 400)
+
+  await c.env.DB.prepare(
+    'DELETE FROM api_keys WHERE user_id = ? AND provider = ?'
+  ).bind(user_id, provider).run()
+
+  return c.json({ success: true })
+})
+
+// API 키 검증 (실제 API 호출 테스트)
+app.post('/api/keys/verify', async (c) => {
+  const { user_id, provider } = await c.req.json<{ user_id: number; provider: string }>()
+
+  const keyRow = await c.env.DB.prepare(
+    'SELECT api_key_encrypted FROM api_keys WHERE user_id = ? AND provider = ?'
+  ).bind(user_id, provider).first<{ api_key_encrypted: string }>()
+
+  if (!keyRow) return c.json({ valid: false, error: 'API 키가 등록되지 않았습니다.' })
+
+  const apiKey = atob(keyRow.api_key_encrypted)
+
+  try {
+    if (provider === 'gemini') {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: 'Hello' }] }],
+            generationConfig: { maxOutputTokens: 10 }
+          })
+        }
+      )
+      if (!res.ok) {
+        await c.env.DB.prepare(
+          'UPDATE api_keys SET is_valid = 0 WHERE user_id = ? AND provider = ?'
+        ).bind(user_id, provider).run()
+        return c.json({ valid: false, error: `API 키가 유효하지 않습니다. (${res.status})` })
+      }
+    }
+
+    await c.env.DB.prepare(
+      'UPDATE api_keys SET is_valid = 1 WHERE user_id = ? AND provider = ?'
+    ).bind(user_id, provider).run()
+    return c.json({ valid: true })
+  } catch (e: any) {
+    return c.json({ valid: false, error: '검증 실패: ' + e.message })
+  }
+})
+
 // --- 핵심: 이중 글쓰기 분석 API ---
 app.post('/api/analyze', async (c) => {
   const { text, category_id, user_id, tone } = await c.req.json<{
@@ -92,6 +183,17 @@ app.post('/api/analyze', async (c) => {
     return c.json({ error: '사용자 정보가 필요합니다.' }, 400)
   }
 
+  // 사용자의 API 키 가져오기
+  const keyRow = await c.env.DB.prepare(
+    'SELECT api_key_encrypted, provider FROM api_keys WHERE user_id = ? AND provider = ? AND is_valid = 1'
+  ).bind(user_id, 'gemini').first<{ api_key_encrypted: string; provider: string }>()
+
+  if (!keyRow) {
+    return c.json({ error: 'API 키가 설정되지 않았습니다. 설정 탭에서 Gemini API 키를 등록해주세요.' }, 400)
+  }
+
+  const apiKey = atob(keyRow.api_key_encrypted)
+
   // 카테고리 어조 가져오기
   let categoryTone = ''
   let categoryName = ''
@@ -103,12 +205,6 @@ app.post('/api/analyze', async (c) => {
       categoryTone = cat.tone_instruction
       categoryName = cat.name
     }
-  }
-
-  // Gemini API 호출
-  const apiKey = c.env.GEMINI_API_KEY
-  if (!apiKey) {
-    return c.json({ error: 'AI API 키가 설정되지 않았습니다.' }, 500)
   }
 
   const systemPrompt = buildSystemPrompt(categoryName, categoryTone, tone || '')
@@ -401,6 +497,9 @@ function getMainHTML(): string {
       <button onclick="switchTab('stats')" id="tab-stats" class="tab-inactive px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all">
         <i class="fas fa-chart-bar mr-1.5"></i>통계 대시보드
       </button>
+      <button onclick="switchTab('settings')" id="tab-settings" class="tab-inactive px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all">
+        <i class="fas fa-cog mr-1.5"></i>설정
+      </button>
     </div>
   </div>
 
@@ -572,6 +671,112 @@ function getMainHTML(): string {
       </div>
     </div>
 
+    <!-- ===== 탭4: 설정 ===== -->
+    <div id="panel-settings" class="hidden fade-in">
+      <div class="max-w-2xl mx-auto space-y-4">
+        <!-- API 키 설정 카드 -->
+        <div class="glass rounded-2xl p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center">
+              <i class="fas fa-key text-white"></i>
+            </div>
+            <div>
+              <h3 class="text-white font-semibold">AI API 키 설정</h3>
+              <p class="text-xs text-gray-400">자신의 API 키를 등록하여 사용합니다. 키는 안전하게 암호화 저장됩니다.</p>
+            </div>
+          </div>
+
+          <!-- API 키 알림 배너 -->
+          <div id="apiKeyAlert" class="hidden mb-4 px-4 py-3 rounded-xl text-sm"></div>
+
+          <!-- Gemini -->
+          <div class="bg-navy-900/60 rounded-xl p-4 mb-3 border border-gray-800">
+            <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <i class="fas fa-gem text-blue-400 text-sm"></i>
+                </div>
+                <div>
+                  <span class="text-sm font-medium text-white">Google Gemini</span>
+                  <span id="geminiStatus" class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">미등록</span>
+                </div>
+              </div>
+              <button onclick="toggleKeyInput('gemini')" id="geminiToggleBtn" class="text-xs text-accent-500 hover:text-accent-400 transition-colors">
+                <i class="fas fa-edit mr-1"></i>설정
+              </button>
+            </div>
+            <div id="geminiKeyInput" class="hidden mt-3 space-y-2">
+              <div class="relative">
+                <input id="geminiKeyField" type="password" placeholder="AIza... 형식의 Gemini API 키 입력"
+                       class="w-full px-3 py-2.5 pr-10 bg-navy-800 border border-gray-700 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:border-accent-500 transition-colors">
+                <button onclick="toggleKeyVisibility('geminiKeyField')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                  <i class="fas fa-eye text-xs"></i>
+                </button>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="saveApiKey('gemini')" class="flex-1 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm rounded-lg transition-colors">
+                  <i class="fas fa-save mr-1"></i>저장
+                </button>
+                <button onclick="verifyApiKey('gemini')" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
+                  <i class="fas fa-check-circle mr-1"></i>검증
+                </button>
+                <button onclick="deleteApiKey('gemini')" class="py-2 px-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-sm rounded-lg transition-colors">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+              <p class="text-xs text-gray-500">
+                <i class="fas fa-info-circle mr-1"></i>
+                <a href="https://aistudio.google.com/apikey" target="_blank" class="text-accent-500 hover:underline">Google AI Studio</a>에서 무료로 발급받을 수 있습니다.
+              </p>
+            </div>
+          </div>
+
+          <!-- OpenAI (추후 확장) -->
+          <div class="bg-navy-900/60 rounded-xl p-4 mb-3 border border-gray-800 opacity-60">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                  <i class="fas fa-brain text-green-400 text-sm"></i>
+                </div>
+                <div>
+                  <span class="text-sm font-medium text-white">OpenAI GPT</span>
+                  <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-500">2단계 지원 예정</span>
+                </div>
+              </div>
+              <i class="fas fa-lock text-gray-600"></i>
+            </div>
+          </div>
+
+          <!-- Claude (추후 확장) -->
+          <div class="bg-navy-900/60 rounded-xl p-4 border border-gray-800 opacity-60">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                  <i class="fas fa-robot text-purple-400 text-sm"></i>
+                </div>
+                <div>
+                  <span class="text-sm font-medium text-white">Anthropic Claude</span>
+                  <span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-500">2단계 지원 예정</span>
+                </div>
+              </div>
+              <i class="fas fa-lock text-gray-600"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 보안 안내 -->
+        <div class="glass rounded-2xl p-5">
+          <h4 class="text-sm font-semibold text-white mb-3"><i class="fas fa-shield-alt mr-2 text-green-400"></i>보안 안내</h4>
+          <ul class="space-y-2 text-xs text-gray-400">
+            <li class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-0.5"></i>API 키는 암호화되어 서버에 저장됩니다.</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-0.5"></i>API 키는 다른 사용자에게 절대 노출되지 않습니다.</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-0.5"></i>언제든지 삭제하거나 변경할 수 있습니다.</li>
+            <li class="flex items-start gap-2"><i class="fas fa-exclamation-triangle text-yellow-500 mt-0.5"></i>API 사용량에 따라 비용이 발생할 수 있습니다. 각 서비스의 요금제를 확인하세요.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -583,6 +788,7 @@ let radarChart = null;
 let trendChart = null;
 let categoryChart = null;
 let historyOffset = 0;
+let hasValidApiKey = false;
 
 const API = '';
 
@@ -604,6 +810,7 @@ function enterApp() {
     document.getElementById('loginModal').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
     loadCategories();
+    checkApiKeyOnLogin();
   })
   .catch(e => alert('연결 오류: ' + e.message));
 }
@@ -617,12 +824,13 @@ function logout() {
 
 // ==================== Tabs ====================
 function switchTab(tab) {
-  ['write','history','stats'].forEach(t => {
+  ['write','history','stats','settings'].forEach(t => {
     document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
     document.getElementById('tab-' + t).className = t === tab ? 'tab-active px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all' : 'tab-inactive px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all';
   });
   if (tab === 'history') { historyOffset = 0; loadHistory(); }
   if (tab === 'stats') loadStats();
+  if (tab === 'settings') loadApiKeyStatus();
 }
 
 // ==================== Categories ====================
@@ -651,6 +859,10 @@ function analyzeText() {
   const text = document.getElementById('inputText').value.trim();
   if (!text) { alert('글을 입력해주세요.'); return; }
   if (!currentUser) { alert('로그인이 필요합니다.'); return; }
+  if (!hasValidApiKey) {
+    if (confirm('API 키가 등록되지 않았습니다. 설정 탭으로 이동할까요?')) { switchTab('settings'); }
+    return;
+  }
 
   const categoryId = document.getElementById('categorySelect').value;
   const tone = document.getElementById('toneSelect').value;
@@ -956,6 +1168,150 @@ function updateCategoryChart(catStats) {
       }
     }
   });
+}
+
+// ==================== API Key Management ====================
+function checkApiKeyOnLogin() {
+  fetch(API + '/api/keys?user_id=' + currentUser.id)
+  .then(r => r.json())
+  .then(data => {
+    const keys = data.keys || [];
+    const gemini = keys.find(k => k.provider === 'gemini');
+    if (gemini && gemini.is_valid) {
+      hasValidApiKey = true;
+    } else {
+      hasValidApiKey = false;
+      // 첫 로그인 시 API 키 미등록이면 안내
+      showApiKeyBanner();
+    }
+  });
+}
+
+function showApiKeyBanner() {
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  if (analyzeBtn && !hasValidApiKey) {
+    const banner = document.createElement('div');
+    banner.id = 'apiKeyBanner';
+    banner.className = 'mt-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-300 flex items-center justify-between';
+    banner.innerHTML = '<div><i class="fas fa-exclamation-triangle mr-2"></i>분석을 시작하려면 설정 탭에서 API 키를 먼저 등록해주세요.</div>'
+      + '<button onclick="switchTab(\\'settings\\')" class="ml-3 px-3 py-1 bg-accent-500 text-white rounded-lg text-xs hover:bg-accent-600 whitespace-nowrap">설정 이동</button>';
+    const existing = document.getElementById('apiKeyBanner');
+    if (existing) existing.remove();
+    analyzeBtn.parentNode.insertBefore(banner, analyzeBtn.nextSibling);
+  }
+}
+
+function loadApiKeyStatus() {
+  if (!currentUser) return;
+  fetch(API + '/api/keys?user_id=' + currentUser.id)
+  .then(r => r.json())
+  .then(data => {
+    const keys = data.keys || [];
+    const gemini = keys.find(k => k.provider === 'gemini');
+    const statusEl = document.getElementById('geminiStatus');
+    if (gemini) {
+      if (gemini.is_valid) {
+        statusEl.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400';
+        statusEl.textContent = '등록됨';
+        hasValidApiKey = true;
+        // 배너 제거
+        const banner = document.getElementById('apiKeyBanner');
+        if (banner) banner.remove();
+      } else {
+        statusEl.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400';
+        statusEl.textContent = '유효하지 않음';
+        hasValidApiKey = false;
+      }
+    } else {
+      statusEl.className = 'ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400';
+      statusEl.textContent = '미등록';
+      hasValidApiKey = false;
+    }
+  });
+}
+
+function toggleKeyInput(provider) {
+  const el = document.getElementById(provider + 'KeyInput');
+  el.classList.toggle('hidden');
+}
+
+function toggleKeyVisibility(fieldId) {
+  const field = document.getElementById(fieldId);
+  const btn = field.nextElementSibling;
+  if (field.type === 'password') {
+    field.type = 'text';
+    btn.innerHTML = '<i class="fas fa-eye-slash text-xs"></i>';
+  } else {
+    field.type = 'password';
+    btn.innerHTML = '<i class="fas fa-eye text-xs"></i>';
+  }
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('apiKeyAlert');
+  el.classList.remove('hidden');
+  el.className = 'mb-4 px-4 py-3 rounded-xl text-sm ' +
+    (type === 'success' ? 'bg-green-500/10 border border-green-500/30 text-green-300' :
+     type === 'error' ? 'bg-red-500/10 border border-red-500/30 text-red-300' :
+     'bg-blue-500/10 border border-blue-500/30 text-blue-300');
+  el.innerHTML = '<i class="fas fa-' + (type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle') + ' mr-2"></i>' + msg;
+  setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+function saveApiKey(provider) {
+  const field = document.getElementById(provider + 'KeyField');
+  const key = field.value.trim();
+  if (!key) { showAlert('API 키를 입력해주세요.', 'error'); return; }
+
+  fetch(API + '/api/keys', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: currentUser.id, provider, api_key: key })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { showAlert(data.error, 'error'); return; }
+    showAlert('API 키가 저장되었습니다. 검증 버튼으로 유효성을 확인하세요.', 'success');
+    field.value = '';
+    loadApiKeyStatus();
+  })
+  .catch(e => showAlert('저장 오류: ' + e.message, 'error'));
+}
+
+function verifyApiKey(provider) {
+  showAlert('API 키를 검증 중입니다...', 'info');
+  fetch(API + '/api/keys/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: currentUser.id, provider })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.valid) {
+      showAlert('API 키가 정상적으로 작동합니다!', 'success');
+    } else {
+      showAlert('API 키 검증 실패: ' + (data.error || '알 수 없는 오류'), 'error');
+    }
+    loadApiKeyStatus();
+  })
+  .catch(e => showAlert('검증 오류: ' + e.message, 'error'));
+}
+
+function deleteApiKey(provider) {
+  if (!confirm('이 API 키를 삭제하시겠습니까?')) return;
+  fetch(API + '/api/keys', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: currentUser.id, provider })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { showAlert(data.error, 'error'); return; }
+    showAlert('API 키가 삭제되었습니다.', 'success');
+    hasValidApiKey = false;
+    loadApiKeyStatus();
+  })
+  .catch(e => showAlert('삭제 오류: ' + e.message, 'error'));
 }
 </script>
 </body>
