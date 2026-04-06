@@ -153,6 +153,11 @@ app.post('/api/keys/verify', async (c) => {
   }
 })
 
+// --- ★ 샘플 데모 API (API 키 불필요) ---
+app.get('/api/demo', async (c) => {
+  return c.json({ result: SAMPLE_DEMO_RESULT })
+})
+
 // --- 핵심: 이중 글쓰기 분석 API ---
 app.post('/api/analyze', async (c) => {
   const { text, category_id, user_id, tone } = await c.req.json<{
@@ -200,9 +205,10 @@ app.post('/api/analyze', async (c) => {
   try {
     const aiResult = await callGemini(apiKey, systemPrompt, userPrompt)
 
+    // ★ ai_details_json, human_details_json도 함께 저장
     await c.env.DB.prepare(
-      `INSERT INTO writing_logs (user_id, category_id, original_text, revised_text, ai_score, human_score, feedback, checklist_json, model_used, tone)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO writing_logs (user_id, category_id, original_text, revised_text, ai_score, human_score, feedback, checklist_json, model_used, tone, ai_details_json, human_details_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       user_id,
       category_id || null,
@@ -213,7 +219,9 @@ app.post('/api/analyze', async (c) => {
       JSON.stringify(aiResult.analysis.feedback),
       JSON.stringify(aiResult.checklist),
       'gemini',
-      tone || ''
+      tone || '',
+      JSON.stringify(aiResult.analysis.ai_details || {}),
+      JSON.stringify(aiResult.analysis.human_details || {})
     ).run()
 
     return c.json({ result: aiResult })
@@ -291,10 +299,24 @@ app.get('/api/stats', async (c) => {
     WHERE wl.user_id = ? GROUP BY c.name ORDER BY count DESC
   `).bind(parseInt(userId)).all()
 
+  // ★ 성장 트래커: 첫 분석과 최근 분석 비교
+  const firstWrite = await c.env.DB.prepare(`
+    SELECT ai_score, human_score, created_at
+    FROM writing_logs WHERE user_id = ?
+    ORDER BY created_at ASC LIMIT 1
+  `).bind(parseInt(userId)).first()
+
+  const lastWrite = await c.env.DB.prepare(`
+    SELECT ai_score, human_score, created_at
+    FROM writing_logs WHERE user_id = ?
+    ORDER BY created_at DESC LIMIT 1
+  `).bind(parseInt(userId)).first()
+
   return c.json({
     stats,
     recentTrend: recentTrend.results,
-    categoryStats: categoryStats.results
+    categoryStats: categoryStats.results,
+    growth: { first: firstWrite, last: lastWrite }
   })
 })
 
@@ -317,6 +339,12 @@ function buildSystemPrompt(categoryName: string, categoryTone: string, userTone:
 - 혜택 대상 특정 (30점): 누구에게 도움이 되는지 명확히 명시
 - 변화/가치 서술 (40점): 독자가 얻을 구체적 변화와 혜택
 - 상황적 공감 묘사 (30점): 독자가 처한 상황에 대한 공감과 스토리
+
+중요: 실제 글의 품질에 맞게 엄격하게 채점하세요. 모든 항목을 만점으로 주지 마세요.
+- 수치 데이터가 전혀 없으면 numbers는 0~10점
+- 수치가 1~2개이면 15~25점
+- 3개 이상이고 구체적이면 30~40점
+- 다른 항목도 마찬가지로 실제 포함 수준에 비례하여 세밀하게 채점
 
 ${categoryName ? `## 카테고리: ${categoryName}\n${categoryTone}\n` : ''}
 ${userTone ? `## 사용자 지정 어조: ${userTone}\n` : ''}
@@ -390,6 +418,43 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
     return JSON.parse(cleaned)
   } catch {
     throw new Error('AI 응답 파싱 실패: ' + text.substring(0, 200))
+  }
+}
+
+// ==================== 샘플 데모 데이터 ====================
+const SAMPLE_DEMO_RESULT = {
+  original_text: "요즘 ChatGPT가 인기가 많다. 많은 사람들이 사용하고 있고, 업무에 도움이 된다고 한다. 나도 써봤는데 꽤 괜찮았다. 앞으로 AI가 더 발전할 것 같다.",
+  revised_text: "2026년 기준 ChatGPT 월간 활성 사용자 수가 3억 명을 돌파했다(OpenAI, 2026.03 발표). 특히 직장인 78%가 '보고서 작성 시간이 평균 42% 단축됐다'고 응답했으며(한국생산성본부, 2026.02 조사), 마케팅 담당자의 경우 콘텐츠 초안 작성 속도가 3.2배 빨라진 것으로 나타났다.\n\n매일 퇴근 후에도 밀린 보고서와 씨름하던 당신이라면, AI 글쓰기 도구 하나로 오후 6시 칼퇴의 일상을 경험할 수 있다. 실제로 국내 IT 기업 중 62%가 AI 작문 도구를 도입한 뒤, 직원 만족도가 평균 31점(100점 만점) 상승했다(잡코리아, 2026.01).\n\n결론적으로, AI 글쓰기 도구는 단순한 유행이 아니라 '시간을 버는 전략'이다. 지금 시작하면 3개월 후 당신의 업무 생산성은 눈에 띄게 달라져 있을 것이다.",
+  result: {
+    revised_text: "2026년 기준 ChatGPT 월간 활성 사용자 수가 3억 명을 돌파했다(OpenAI, 2026.03 발표). 특히 직장인 78%가 '보고서 작성 시간이 평균 42% 단축됐다'고 응답했으며(한국생산성본부, 2026.02 조사), 마케팅 담당자의 경우 콘텐츠 초안 작성 속도가 3.2배 빨라진 것으로 나타났다.\n\n매일 퇴근 후에도 밀린 보고서와 씨름하던 당신이라면, AI 글쓰기 도구 하나로 오후 6시 칼퇴의 일상을 경험할 수 있다. 실제로 국내 IT 기업 중 62%가 AI 작문 도구를 도입한 뒤, 직원 만족도가 평균 31점(100점 만점) 상승했다(잡코리아, 2026.01).\n\n결론적으로, AI 글쓰기 도구는 단순한 유행이 아니라 '시간을 버는 전략'이다. 지금 시작하면 3개월 후 당신의 업무 생산성은 눈에 띄게 달라져 있을 것이다.",
+    analysis: {
+      ai_score: 82,
+      human_score: 75,
+      ai_details: {
+        numbers: 35,
+        source: 25,
+        structure: 22
+      },
+      human_details: {
+        target: 24,
+        value: 28,
+        empathy: 23
+      },
+      feedback: [
+        "수치 데이터가 풍부합니다. '3억 명', '78%', '42%', '3.2배', '62%', '31점' 등 구체적 숫자가 AI 검색 노출에 매우 유리합니다.",
+        "출처 표기가 명확합니다. OpenAI, 한국생산성본부, 잡코리아 등 신뢰도 높은 기관을 인용하여 검색 엔진의 신뢰 점수를 높입니다.",
+        "독자 대상('매일 퇴근 후에도 밀린 보고서와 씨름하던 당신')과 기대 변화('오후 6시 칼퇴')가 명확하여 공감도가 높습니다.",
+        "개선 포인트: 두괄식 구조를 더 강화하면 좋겠습니다. 첫 문장에 '직장인 업무 효율 42% 향상'처럼 핵심 결론을 먼저 배치하세요.",
+        "개선 포인트: 독자별 맞춤 시나리오(예: 마케터, 개발자, 기획자)를 추가하면 타겟 세그먼트별 공감도가 올라갑니다."
+      ]
+    },
+    checklist: {
+      has_numbers: true,
+      has_source: true,
+      has_target: true,
+      has_benefit: true,
+      is_head_heavy: false
+    }
   }
 }
 

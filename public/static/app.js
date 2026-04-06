@@ -1,5 +1,5 @@
 // ==================== DualWrite Pro - Frontend Application ====================
-// Pure JS file — NO Hono template escaping issues possible
+// v2.0 — 샘플 데모 + Diff 시각화 + 성장 트래커 + 체크리스트 예시 + 모바일 최적화
 
 (function() {
   'use strict';
@@ -15,6 +15,7 @@
   var lastOriginalText = '';
   var historyCache = [];
   var API = '';
+  var isDemoMode = false;
 
   // ==================== UTILITY ====================
   function $(id) { return document.getElementById(id); }
@@ -42,6 +43,12 @@
     return { label: 'D', cls: 'bg-red-500/20 text-red-300', text: 'score-poor' };
   }
 
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   // ==================== AUTH ====================
   window.enterApp = function() {
     var nickname = $('nicknameInput').value.trim();
@@ -59,6 +66,7 @@
       $('displayNickname').textContent = currentUser.nickname;
       $('loginModal').classList.add('hidden');
       $('mainApp').classList.remove('hidden');
+      isDemoMode = false;
       loadCategories();
       checkApiKeyOnLogin();
     })
@@ -67,13 +75,51 @@
 
   window.logout = function() {
     currentUser = null;
+    isDemoMode = false;
     $('mainApp').classList.add('hidden');
     $('loginModal').classList.remove('hidden');
     $('nicknameInput').value = '';
+    // Reset result panels
+    $('resultContent').classList.add('hidden');
+    $('resultPlaceholder').classList.remove('hidden');
+  };
+
+  // ==================== ★ 샘플 데모 원클릭 체험 ====================
+  window.tryDemo = function() {
+    isDemoMode = true;
+    $('loginModal').classList.add('hidden');
+    $('mainApp').classList.remove('hidden');
+    $('displayNickname').textContent = '체험 모드';
+
+    // Disable history/stats/settings tabs in demo mode
+    showToast('샘플 데모 모드입니다. 로그인하면 모든 기능을 사용할 수 있습니다.', 'info');
+
+    // Load demo data
+    fetch(API + '/api/demo')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var demo = data.result;
+      // Populate textarea with sample original text
+      $('inputText').value = demo.original_text;
+      $('charCount').textContent = demo.original_text.length;
+      $('charBar').style.width = (demo.original_text.length / 3000 * 100) + '%';
+      lastOriginalText = demo.original_text;
+
+      // Display result
+      displayResult(demo.result);
+      showToast('샘플 분석 결과가 로드되었습니다! 실제 분석은 로그인 후 가능합니다.', 'success');
+    })
+    .catch(function(e) {
+      showToast('데모 로드 실패: ' + e.message, 'error');
+    });
   };
 
   // ==================== TABS ====================
   window.switchTab = function(tab) {
+    if (isDemoMode && (tab === 'history' || tab === 'stats' || tab === 'settings')) {
+      showToast('로그인 후 사용 가능한 기능입니다.', 'error');
+      return;
+    }
     ['write', 'history', 'stats', 'settings'].forEach(function(t) {
       var panel = $('panel-' + t);
       var btn = $('tab-' + t);
@@ -124,6 +170,10 @@
 
   // ==================== ANALYSIS ====================
   window.analyzeText = function() {
+    if (isDemoMode) {
+      showToast('실제 분석은 로그인 후 사용 가능합니다. 닉네임으로 로그인해주세요.', 'error');
+      return;
+    }
     var text = $('inputText').value.trim();
     if (!text) { showToast('글을 입력해주세요.', 'error'); return; }
     if (!currentUser) { showToast('로그인이 필요합니다.', 'error'); return; }
@@ -175,9 +225,10 @@
   // ==================== DISPLAY RESULT ====================
   function displayResult(result) {
     $('resultContent').classList.remove('hidden');
+    $('resultPlaceholder').classList.add('hidden');
 
-    var ai = result.analysis.ai_score;
-    var hu = result.analysis.human_score;
+    var ai = result.analysis.ai_score || 0;
+    var hu = result.analysis.human_score || 0;
     var avg = Math.round((ai + hu) / 2);
     var grade = getGrade(avg);
 
@@ -193,29 +244,20 @@
       $('humanScoreRing').style.strokeDashoffset = circumference - (circumference * hu / 100);
     }, 100);
 
-    // Detail scores
+    // ★ Detail scores — 실제 값 반영
     var ad = result.analysis.ai_details || {};
     var hd = result.analysis.human_details || {};
 
-    $('detailNumbers').textContent = (ad.numbers || 0) + '/40';
-    $('detailSource').textContent = (ad.source || 0) + '/30';
-    $('detailStructure').textContent = (ad.structure || 0) + '/30';
-    $('detailTarget').textContent = (hd.target || 0) + '/30';
-    $('detailValue').textContent = (hd.value || 0) + '/40';
-    $('detailEmpathy').textContent = (hd.empathy || 0) + '/30';
-
-    setTimeout(function() {
-      $('barNumbers').style.width = ((ad.numbers || 0) / 40 * 100) + '%';
-      $('barSource').style.width = ((ad.source || 0) / 30 * 100) + '%';
-      $('barStructure').style.width = ((ad.structure || 0) / 30 * 100) + '%';
-      $('barTarget').style.width = ((hd.target || 0) / 30 * 100) + '%';
-      $('barValue').style.width = ((hd.value || 0) / 40 * 100) + '%';
-      $('barEmpathy').style.width = ((hd.empathy || 0) / 30 * 100) + '%';
-    }, 200);
+    setDetailScore('Numbers', ad.numbers || 0, 40, 'blue');
+    setDetailScore('Source', ad.source || 0, 30, 'blue');
+    setDetailScore('Structure', ad.structure || 0, 30, 'blue');
+    setDetailScore('Target', hd.target || 0, 30, 'accent');
+    setDetailScore('Value', hd.value || 0, 40, 'accent');
+    setDetailScore('Empathy', hd.empathy || 0, 30, 'accent');
 
     updateRadarChart(ad, hd);
 
-    // Checklist
+    // Checklist with improvement examples
     var cl = result.checklist || {};
     renderChecklist(cl);
 
@@ -223,28 +265,70 @@
     var feedbacks = result.analysis.feedback || [];
     renderFeedback(feedbacks);
 
-    // Before/After
+    // ★ Before/After with DIFF visualization
     $('beforeText').textContent = lastOriginalText;
     renderRevisedText(result.revised_text || '');
+    renderDiffView(lastOriginalText, result.revised_text || '');
   }
 
+  // ★ 점수를 실제 값으로 세팅하는 함수
+  function setDetailScore(name, score, max, color) {
+    var detailEl = $('detail' + name);
+    var barEl = $('bar' + name);
+    if (detailEl) detailEl.textContent = score + '/' + max;
+    if (barEl) {
+      setTimeout(function() {
+        barEl.style.width = (score / max * 100) + '%';
+      }, 200);
+    }
+  }
+
+  // ==================== ★ CHECKLIST WITH IMPROVEMENT EXAMPLES ====================
   function renderChecklist(cl) {
     var items = [
-      { key: 'has_numbers', label: '수치 데이터', desc: '%, 금액, 기간 등', icon: 'fa-hashtag' },
-      { key: 'has_source', label: '출처 명시', desc: '신뢰 출처, 측정 기간', icon: 'fa-quote-right' },
-      { key: 'has_target', label: '대상 특정', desc: '누구에게 도움?', icon: 'fa-user-check' },
-      { key: 'has_benefit', label: '변화 서술', desc: '어떤 변화/혜택?', icon: 'fa-arrow-trend-up' },
-      { key: 'is_head_heavy', label: '두괄식 배치', desc: '핵심 키워드 전면', icon: 'fa-heading' }
+      {
+        key: 'has_numbers', label: '수치 데이터', desc: '%, 금액, 기간 등', icon: 'fa-hashtag',
+        example_before: '많은 사람들이 사용하고 있다',
+        example_after: '직장인 78%가 주 3회 이상 활용 중이다'
+      },
+      {
+        key: 'has_source', label: '출처 명시', desc: '신뢰 출처, 측정 기간', icon: 'fa-quote-right',
+        example_before: '연구에 따르면 효과가 있다고 한다',
+        example_after: '한국생산성본부(2026.02) 조사에 따르면'
+      },
+      {
+        key: 'has_target', label: '대상 특정', desc: '누구에게 도움?', icon: 'fa-user-check',
+        example_before: '사람들에게 도움이 된다',
+        example_after: '매일 3건 이상 보고서를 쓰는 마케터라면'
+      },
+      {
+        key: 'has_benefit', label: '변화 서술', desc: '어떤 변화/혜택?', icon: 'fa-arrow-trend-up',
+        example_before: '업무가 편해진다',
+        example_after: '보고서 작성 시간이 42% 단축되어 오후 6시 칼퇴 가능'
+      },
+      {
+        key: 'is_head_heavy', label: '두괄식 배치', desc: '핵심 키워드 전면', icon: 'fa-heading',
+        example_before: '여러 기능이 있는데 결론적으로 좋다',
+        example_after: '업무 생산성 42% 향상 — AI 글쓰기 도구의 핵심 가치'
+      }
     ];
     var passCount = 0;
     var html = items.map(function(item) {
       var pass = cl[item.key];
       if (pass) passCount++;
-      return '<div class="check-card ' + (pass ? 'pass' : 'fail') + ' flex items-center gap-3">'
+      return '<div class="check-card ' + (pass ? 'pass' : 'fail') + ' rounded-xl p-3">'
+        + '<div class="flex items-center gap-3 mb-2">'
         + '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ' + (pass ? 'bg-green-500/20' : 'bg-red-500/20') + '">'
         + '<i class="fas ' + (pass ? 'fa-check' : 'fa-xmark') + ' ' + (pass ? 'text-green-400' : 'text-red-400') + '"></i></div>'
         + '<div><div class="text-sm font-medium ' + (pass ? 'text-green-300' : 'text-red-300') + '">' + item.label + '</div>'
-        + '<div class="text-[10px] text-gray-500">' + item.desc + '</div></div></div>';
+        + '<div class="text-[10px] text-gray-500">' + item.desc + '</div></div></div>'
+        // ★ Before→After 예시 (미통과 항목에만 표시)
+        + (!pass ? '<div class="checklist-example mt-2 pt-2 border-t border-gray-700/30">'
+          + '<div class="text-[10px] text-gray-500 mb-1"><i class="fas fa-arrow-right mr-1"></i>개선 예시</div>'
+          + '<div class="text-[11px] text-red-400/70 line-through mb-0.5">' + escapeHtml(item.example_before) + '</div>'
+          + '<div class="text-[11px] text-green-400 font-medium">' + escapeHtml(item.example_after) + '</div>'
+          + '</div>' : '')
+        + '</div>';
     }).join('');
 
     $('checklistArea').innerHTML = html;
@@ -260,24 +344,15 @@
     }).join('');
   }
 
-  function escapeHtml(text) {
-    var div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
   // ==================== REVISED TEXT RENDERING ====================
-  // Key improvement: bright background, large font, paragraph separation, number highlighting
   function renderRevisedText(text) {
     var el = $('revisedText');
     if (!text) { el.innerHTML = '<p class="text-gray-400 italic">교정문이 없습니다.</p>'; return; }
 
-    // Split by double newlines first (paragraph detection)
     var paragraphs = text.split(/\n\n+/);
 
     if (paragraphs.length <= 1) {
-      // Try splitting by sentence endings: . ! ? followed by space
-      var sentenceRe = /([.!?。])\s+/g;
+      var sentenceRe = /([.!?])\s+/g;
       var sentences = [];
       var lastIndex = 0;
       var match;
@@ -290,7 +365,6 @@
         sentences.push(text.substring(lastIndex));
       }
 
-      // Group sentences into paragraphs of 2-3 sentences each
       if (sentences.length > 3) {
         var grouped = [];
         for (var i = 0; i < sentences.length; i += 2) {
@@ -312,22 +386,112 @@
     }
   }
 
-  // Highlight numbers, percentages, units — pure JS regex, no escaping issues
   function highlightKeyElements(text) {
-    // Highlight numbers with units (%, 만원, 억, 배, 개월, 년 등)
-    var numPattern = /(\d+[.,]?\d*\s*[%만원억천달러배건명개월년주일시간분초위개])/g;
+    var numPattern = /(\d+[.,]?\d*\s*[%만원억천달러배건명개월년주일시간분초위개점])/g;
     var result = text.replace(numPattern, '<span class="hl-num">$1</span>');
-
-    // Highlight quoted text
-    var quotePattern = /(['"][^'"]+['"])/g;
+    var quotePattern = /(['"\u2018\u2019\u201C\u201D][^'"\u2018\u2019\u201C\u201D]+['"\u2018\u2019\u201C\u201D])/g;
     result = result.replace(quotePattern, '<span class="hl-quote">$1</span>');
+    return result;
+  }
 
+  // ==================== ★ DIFF VISUALIZATION ====================
+  function renderDiffView(original, revised) {
+    var diffContainer = $('diffView');
+    if (!diffContainer) return;
+
+    if (!original || !revised) {
+      diffContainer.innerHTML = '<p class="text-gray-500 italic text-sm">비교할 텍스트가 없습니다.</p>';
+      return;
+    }
+
+    // Simple word-level diff
+    var origWords = original.replace(/\n/g, ' ').split(/\s+/);
+    var revWords = revised.replace(/\n/g, ' ').split(/\s+/);
+
+    // Use LCS-based diff for better accuracy
+    var diff = computeDiff(origWords, revWords);
+    var html = '';
+
+    diff.forEach(function(item) {
+      if (item.type === 'equal') {
+        html += '<span class="diff-equal">' + escapeHtml(item.text) + '</span> ';
+      } else if (item.type === 'delete') {
+        html += '<span class="diff-delete">' + escapeHtml(item.text) + '</span> ';
+      } else if (item.type === 'insert') {
+        html += '<span class="diff-insert">' + escapeHtml(item.text) + '</span> ';
+      }
+    });
+
+    // Stats
+    var insertCount = diff.filter(function(d) { return d.type === 'insert'; }).length;
+    var deleteCount = diff.filter(function(d) { return d.type === 'delete'; }).length;
+    var equalCount = diff.filter(function(d) { return d.type === 'equal'; }).length;
+
+    diffContainer.innerHTML = '<div class="diff-stats mb-3">'
+      + '<span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-green-500/10 text-green-400 mr-2"><i class="fas fa-plus"></i> 추가 ' + insertCount + '단어</span>'
+      + '<span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-400 mr-2"><i class="fas fa-minus"></i> 삭제 ' + deleteCount + '단어</span>'
+      + '<span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-gray-500/10 text-gray-400"><i class="fas fa-equals"></i> 유지 ' + equalCount + '단어</span>'
+      + '</div>'
+      + '<div class="diff-content">' + html + '</div>';
+  }
+
+  // LCS-based simple diff
+  function computeDiff(a, b) {
+    var m = a.length, n = b.length;
+    // For very long arrays, use simplified approach
+    if (m > 500 || n > 500) {
+      return simpleDiff(a, b);
+    }
+
+    var dp = [];
+    for (var i = 0; i <= m; i++) {
+      dp[i] = [];
+      for (var j = 0; j <= n; j++) {
+        if (i === 0 || j === 0) dp[i][j] = 0;
+        else if (a[i-1] === b[j-1]) dp[i][j] = dp[i-1][j-1] + 1;
+        else dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
+      }
+    }
+
+    // Backtrack
+    var result = [];
+    var ii = m, jj = n;
+    while (ii > 0 || jj > 0) {
+      if (ii > 0 && jj > 0 && a[ii-1] === b[jj-1]) {
+        result.unshift({ type: 'equal', text: a[ii-1] });
+        ii--; jj--;
+      } else if (jj > 0 && (ii === 0 || dp[ii][jj-1] >= dp[ii-1][jj])) {
+        result.unshift({ type: 'insert', text: b[jj-1] });
+        jj--;
+      } else {
+        result.unshift({ type: 'delete', text: a[ii-1] });
+        ii--;
+      }
+    }
+    return result;
+  }
+
+  function simpleDiff(a, b) {
+    var result = [];
+    var bSet = {};
+    b.forEach(function(w) { bSet[w] = true; });
+    var aSet = {};
+    a.forEach(function(w) { aSet[w] = true; });
+
+    a.forEach(function(w) {
+      if (bSet[w]) result.push({ type: 'equal', text: w });
+      else result.push({ type: 'delete', text: w });
+    });
+    b.forEach(function(w) {
+      if (!aSet[w]) result.push({ type: 'insert', text: w });
+    });
     return result;
   }
 
   // ==================== SCORE ANIMATION ====================
   function animateScore(elId, target) {
     var el = $(elId);
+    if (!el) return;
     var duration = 1200;
     var startTime = performance.now();
 
@@ -343,7 +507,9 @@
 
   // ==================== RADAR CHART ====================
   function updateRadarChart(ai, human) {
-    var ctx = $('radarChart').getContext('2d');
+    var ctx = $('radarChart');
+    if (!ctx) return;
+    ctx = ctx.getContext('2d');
     if (radarChart) radarChart.destroy();
 
     radarChart = new Chart(ctx, {
@@ -421,6 +587,25 @@
     });
   };
 
+  // ==================== ★ DIFF VIEW TOGGLE ====================
+  window.toggleDiffView = function() {
+    var diffPanel = $('diffPanel');
+    var comparisonPanel = $('comparisonPanel');
+    var diffBtn = $('diffToggleBtn');
+
+    if (diffPanel.classList.contains('hidden')) {
+      diffPanel.classList.remove('hidden');
+      comparisonPanel.classList.add('hidden');
+      diffBtn.innerHTML = '<i class="fas fa-columns mr-1"></i> 나란히 보기';
+      diffBtn.classList.add('bg-purple-500/20', 'text-purple-400');
+    } else {
+      diffPanel.classList.add('hidden');
+      comparisonPanel.classList.remove('hidden');
+      diffBtn.innerHTML = '<i class="fas fa-code-compare mr-1"></i> Diff 비교';
+      diffBtn.classList.remove('bg-purple-500/20', 'text-purple-400');
+    }
+  };
+
   // ==================== HISTORY ====================
   function loadHistory() {
     if (!currentUser) return;
@@ -473,47 +658,43 @@
     var huG = getGrade(log.human_score);
     var avg = Math.round(((log.ai_score || 0) + (log.human_score || 0)) / 2);
     var avgG = getGrade(avg);
-    var preview = (log.original_text || '').substring(0, 150);
-    var revisedPreview = (log.revised_text || '').substring(0, 150);
+    var preview = (log.original_text || '').substring(0, 120);
+    var revisedPreview = (log.revised_text || '').substring(0, 120);
 
-    return '<div class="glass-card history-item rounded-2xl p-5 fade-up" onclick="window.loadFromHistory(' + idx + ')">'
-      + '<div class="flex items-center justify-between mb-3">'
+    return '<div class="glass-card history-item rounded-2xl p-4 sm:p-5 fade-up" onclick="window.loadFromHistory(' + idx + ')">'
+      + '<div class="flex items-center justify-between mb-3 flex-wrap gap-2">'
       + '<div class="flex items-center gap-2 flex-wrap">'
       + (log.category_name ? '<span class="px-2.5 py-1 bg-accent-500/10 text-accent-400 text-[11px] rounded-lg font-medium"><i class="fas fa-folder mr-1"></i>' + log.category_name + '</span>' : '')
       + '<span class="text-[11px] text-gray-500"><i class="fas fa-clock mr-1"></i>' + formatDate(log.created_at) + '</span>'
       + '</div>'
-      + '<div class="flex items-center gap-2">'
-      + '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ' + aiG.cls + '"><i class="fas fa-robot mr-1"></i>AI ' + log.ai_score + '</span>'
-      + '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ' + huG.cls + '"><i class="fas fa-heart mr-1"></i>' + log.human_score + '</span>'
+      + '<div class="flex items-center gap-1.5">'
+      + '<span class="px-2 py-1 rounded-lg text-[11px] font-bold ' + aiG.cls + '"><i class="fas fa-robot mr-1"></i>' + log.ai_score + '</span>'
+      + '<span class="px-2 py-1 rounded-lg text-[11px] font-bold ' + huG.cls + '"><i class="fas fa-heart mr-1"></i>' + log.human_score + '</span>'
       + '<span class="px-2 py-1 rounded-lg text-[11px] font-bold ' + avgG.cls + '">' + avgG.label + '</span>'
       + '</div></div>'
       + '<p class="text-sm text-gray-400 leading-relaxed line-clamp-2 mb-2">' + escapeHtml(preview) + '</p>'
       + (revisedPreview ? '<div class="pt-2 border-t border-gray-800/30"><p class="text-sm text-amber-200/70 leading-relaxed line-clamp-2"><i class="fas fa-wand-magic-sparkles text-accent-500 mr-1.5"></i>' + escapeHtml(revisedPreview) + '</p></div>' : '')
-      + '<div class="mt-3 flex justify-end"><span class="text-xs text-accent-500/60 hover:text-accent-400 transition-colors"><i class="fas fa-arrow-up-right-from-square mr-1"></i>상세 보기</span></div>'
+      + '<div class="mt-2 flex justify-end"><span class="text-xs text-accent-500/60 hover:text-accent-400 transition-colors"><i class="fas fa-arrow-up-right-from-square mr-1"></i>상세 보기</span></div>'
       + '</div>';
   }
 
-  // ==================== LOAD FROM HISTORY (Core Feature) ====================
+  // ==================== LOAD FROM HISTORY ====================
   window.loadFromHistory = function(idx) {
     var log = historyCache[idx];
     if (!log) { showToast('이력 데이터를 찾을 수 없습니다.', 'error'); return; }
 
-    // Switch to write tab
     switchTab('write');
 
-    // Load original text into textarea
     var textarea = $('inputText');
     textarea.value = log.original_text || '';
     $('charCount').textContent = textarea.value.length;
     $('charBar').style.width = (textarea.value.length / 3000 * 100) + '%';
     lastOriginalText = log.original_text || '';
 
-    // Show results area
     $('resultPlaceholder').classList.add('hidden');
     $('resultLoading').classList.add('hidden');
     $('resultContent').classList.remove('hidden');
 
-    // Restore scores
     var ai = log.ai_score || 0;
     var hu = log.human_score || 0;
     var avg = Math.round((ai + hu) / 2);
@@ -531,12 +712,22 @@
       $('humanScoreRing').style.strokeDashoffset = circumference - (circumference * hu / 100);
     }, 100);
 
-    // Reset detail bars (historical logs don't store details)
-    ['Numbers', 'Source', 'Structure', 'Target', 'Value', 'Empathy'].forEach(function(k) {
-      var el = $('detail' + k); if (el) el.textContent = '-';
-      var bar = $('bar' + k); if (bar) bar.style.width = '0%';
-    });
-    updateRadarChart({ numbers: 0, source: 0, structure: 0 }, { target: 0, value: 0, empathy: 0 });
+    // ★ 이력에서 세부 점수 복원 (DB에 저장된 ai_details_json/human_details_json 활용)
+    var ad = {};
+    var hd = {};
+    try {
+      ad = typeof log.ai_details_json === 'string' ? JSON.parse(log.ai_details_json) : (log.ai_details_json || {});
+      hd = typeof log.human_details_json === 'string' ? JSON.parse(log.human_details_json) : (log.human_details_json || {});
+    } catch(e) { /* fallback to empty */ }
+
+    setDetailScore('Numbers', ad.numbers || 0, 40, 'blue');
+    setDetailScore('Source', ad.source || 0, 30, 'blue');
+    setDetailScore('Structure', ad.structure || 0, 30, 'blue');
+    setDetailScore('Target', hd.target || 0, 30, 'accent');
+    setDetailScore('Value', hd.value || 0, 40, 'accent');
+    setDetailScore('Empathy', hd.empathy || 0, 30, 'accent');
+
+    updateRadarChart(ad, hd);
 
     // Restore checklist
     try {
@@ -550,11 +741,10 @@
       if (feedbacks && Array.isArray(feedbacks)) renderFeedback(feedbacks);
     } catch(e) { /* ignore */ }
 
-    // Before/After display
     $('beforeText').textContent = log.original_text || '';
     renderRevisedText(log.revised_text || '');
+    renderDiffView(log.original_text || '', log.revised_text || '');
 
-    // Show detail modal
     showHistoryModal(log);
 
     showToast('이력을 불러왔습니다 — ' + (log.category_name || '미분류') + ' (' + formatDate(log.created_at) + ')', 'info');
@@ -572,9 +762,8 @@
     var grade = getGrade(avg);
 
     var originalText = escapeHtml(log.original_text || '');
-    var revisedHtml = highlightKeyElements(log.revised_text || '');
-    // Format revised text into paragraphs
     var revisedParagraphs = (log.revised_text || '').split(/\n\n+/);
+    var revisedHtml;
     if (revisedParagraphs.length <= 1) {
       revisedHtml = '<p>' + highlightKeyElements(log.revised_text || '') + '</p>';
     } else {
@@ -584,7 +773,7 @@
     }
 
     $('modalBody').innerHTML = ''
-      + '<div class="flex items-center justify-between mb-6">'
+      + '<div class="flex items-center justify-between mb-6 flex-wrap gap-3">'
       + '<div class="flex items-center gap-3">'
       + '<div class="w-12 h-12 rounded-xl bg-gradient-to-br from-accent-500 to-accent-600 flex items-center justify-center"><i class="fas fa-scroll text-white text-lg"></i></div>'
       + '<div><h3 class="text-white font-bold text-lg">교정 이력 상세</h3>'
@@ -592,7 +781,6 @@
       + '</div>'
       + '<div class="flex gap-2"><span class="px-3 py-1.5 rounded-xl text-sm font-bold ' + grade.cls + '">' + grade.label + '등급 (' + avg + '점)</span></div>'
       + '</div>'
-
       // Scores row
       + '<div class="grid grid-cols-2 gap-4 mb-6">'
       + '<div class="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 text-center">'
@@ -602,13 +790,11 @@
       + '<div class="text-3xl font-extrabold text-accent-400 stat-num">' + hu + '</div>'
       + '<div class="text-xs text-gray-400 mt-1"><i class="fas fa-heart mr-1"></i>인간 점수</div></div>'
       + '</div>'
-
       // Original text
       + '<div class="mb-4">'
       + '<div class="flex items-center gap-2 mb-2"><span class="w-2 h-2 bg-gray-400 rounded-full"></span><span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">원문</span></div>'
       + '<div class="before-box text-sm leading-relaxed whitespace-pre-wrap">' + originalText + '</div>'
       + '</div>'
-
       // Revised text
       + '<div class="mb-4">'
       + '<div class="flex items-center gap-2 mb-2"><span class="w-2 h-2 bg-green-400 rounded-full"></span><span class="text-xs font-semibold text-green-400 uppercase tracking-wider">교정문 (AI 추천)</span>'
@@ -630,7 +816,6 @@
     });
   };
 
-  // Close modal on backdrop click
   document.addEventListener('DOMContentLoaded', function() {
     var modal = $('historyModal');
     if (modal) {
@@ -640,7 +825,7 @@
     }
   });
 
-  // ==================== STATS ====================
+  // ==================== ★ STATS WITH GROWTH TRACKER ====================
   function loadStats() {
     if (!currentUser) return;
     fetch(API + '/api/stats?user_id=' + currentUser.id)
@@ -652,11 +837,77 @@
       animateCounter('statAvgHuman', s.avg_human_score || 0);
       updateTrendChart((data.recentTrend || []).reverse());
       updateCategoryChart(data.categoryStats || []);
+
+      // ★ 성장 트래커
+      renderGrowthTracker(data.growth, s);
     });
+  }
+
+  // ★ 성장 트래커 렌더링
+  function renderGrowthTracker(growth, stats) {
+    var container = $('growthTracker');
+    if (!container) return;
+
+    if (!growth || !growth.first || !growth.last || stats.total_writes < 2) {
+      container.innerHTML = '<div class="text-center py-8">'
+        + '<div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent-500/10 flex items-center justify-center">'
+        + '<i class="fas fa-seedling text-2xl text-accent-500"></i></div>'
+        + '<p class="text-gray-400 font-medium">분석을 2회 이상 진행하면</p>'
+        + '<p class="text-gray-500 text-sm">성장 리포트가 생성됩니다</p>'
+        + '</div>';
+      return;
+    }
+
+    var first = growth.first;
+    var last = growth.last;
+    var aiDiff = (last.ai_score || 0) - (first.ai_score || 0);
+    var huDiff = (last.human_score || 0) - (first.human_score || 0);
+    var avgFirst = Math.round(((first.ai_score || 0) + (first.human_score || 0)) / 2);
+    var avgLast = Math.round(((last.ai_score || 0) + (last.human_score || 0)) / 2);
+    var avgDiff = avgLast - avgFirst;
+
+    var aiArrow = aiDiff > 0 ? 'fa-arrow-up text-green-400' : aiDiff < 0 ? 'fa-arrow-down text-red-400' : 'fa-minus text-gray-400';
+    var huArrow = huDiff > 0 ? 'fa-arrow-up text-green-400' : huDiff < 0 ? 'fa-arrow-down text-red-400' : 'fa-minus text-gray-400';
+    var avgArrow = avgDiff > 0 ? 'fa-arrow-up text-green-400' : avgDiff < 0 ? 'fa-arrow-down text-red-400' : 'fa-minus text-gray-400';
+
+    // 인사이트 문구 생성
+    var insight = '';
+    if (avgDiff > 15) insight = '눈에 띄는 성장을 보이고 있습니다! 꾸준히 연습한 결과가 나타나고 있어요.';
+    else if (avgDiff > 5) insight = '조금씩 성장하고 있습니다. 수치 데이터와 출처 보강에 집중해 보세요.';
+    else if (avgDiff > 0) insight = '소폭 개선되었습니다. 체크리스트 미통과 항목을 집중 개선해 보세요.';
+    else if (avgDiff === 0) insight = '점수가 유지 중입니다. 새로운 카테고리에 도전해 보세요.';
+    else insight = '점수가 다소 하락했습니다. 성·기·대·변 공식을 다시 점검해 보세요.';
+
+    container.innerHTML = ''
+      + '<div class="grid grid-cols-3 gap-3 mb-4">'
+      + '<div class="text-center p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">'
+      + '<div class="text-xl font-bold text-blue-400">' + (aiDiff > 0 ? '+' : '') + aiDiff + '<i class="fas ' + aiArrow + ' text-sm ml-1"></i></div>'
+      + '<div class="text-[10px] text-gray-500 mt-1">AI 점수 변화</div>'
+      + '<div class="text-[10px] text-gray-600">' + (first.ai_score || 0) + ' → ' + (last.ai_score || 0) + '</div>'
+      + '</div>'
+      + '<div class="text-center p-3 rounded-xl bg-accent-500/5 border border-accent-500/10">'
+      + '<div class="text-xl font-bold text-accent-400">' + (huDiff > 0 ? '+' : '') + huDiff + '<i class="fas ' + huArrow + ' text-sm ml-1"></i></div>'
+      + '<div class="text-[10px] text-gray-500 mt-1">인간 점수 변화</div>'
+      + '<div class="text-[10px] text-gray-600">' + (first.human_score || 0) + ' → ' + (last.human_score || 0) + '</div>'
+      + '</div>'
+      + '<div class="text-center p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">'
+      + '<div class="text-xl font-bold text-purple-400">' + (avgDiff > 0 ? '+' : '') + avgDiff + '<i class="fas ' + avgArrow + ' text-sm ml-1"></i></div>'
+      + '<div class="text-[10px] text-gray-500 mt-1">종합 변화</div>'
+      + '<div class="text-[10px] text-gray-600">' + avgFirst + ' → ' + avgLast + '</div>'
+      + '</div>'
+      + '</div>'
+      + '<div class="p-3 rounded-xl bg-navy-900/40 border border-gray-700/30">'
+      + '<div class="flex items-start gap-3">'
+      + '<div class="w-8 h-8 rounded-lg bg-accent-500/10 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-brain text-accent-400 text-sm"></i></div>'
+      + '<div><p class="text-sm text-gray-300 font-medium">성장 인사이트</p>'
+      + '<p class="text-xs text-gray-400 mt-1 leading-relaxed">' + insight + '</p>'
+      + '<p class="text-[10px] text-gray-600 mt-2">총 ' + (stats.total_writes || 0) + '회 분석 · 첫 분석: ' + formatDate(first.created_at) + '</p>'
+      + '</div></div></div>';
   }
 
   function animateCounter(id, target) {
     var el = $(id);
+    if (!el) return;
     var dur = 800;
     var start = performance.now();
     function upd(t) {
@@ -669,7 +920,9 @@
   }
 
   function updateTrendChart(trend) {
-    var ctx = $('trendChart').getContext('2d');
+    var el = $('trendChart');
+    if (!el) return;
+    var ctx = el.getContext('2d');
     if (trendChart) trendChart.destroy();
     trendChart = new Chart(ctx, {
       type: 'line',
@@ -692,7 +945,9 @@
   }
 
   function updateCategoryChart(catStats) {
-    var ctx = $('categoryChart').getContext('2d');
+    var el = $('categoryChart');
+    if (!el) return;
+    var ctx = el.getContext('2d');
     if (categoryChart) categoryChart.destroy();
     if (!catStats.length) {
       ctx.font = '500 14px Noto Sans KR';
