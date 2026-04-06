@@ -6,6 +6,7 @@
 - **Formula**: 성(성과) · 기(기준) · 대(대상) · 변(변화) 공식 기반 분석
 
 ## URLs
+- **Production**: https://writescope.pages.dev
 - **Sandbox**: https://3000-iv40r4e3e7svj5u7j9ww2-8f57ffe2.sandbox.novita.ai
 - **API Base**: /api/*
 
@@ -56,5 +57,5 @@
 
 ## Deployment
 - **Platform**: Cloudflare Pages
-- **Status**: Active (개발 환경)
+- **Status**: Active (프로덕션 배포 완료)
 - **Last Updated**: 2026-04-06
