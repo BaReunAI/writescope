@@ -387,10 +387,17 @@
   }
 
   function highlightKeyElements(text) {
+    // Step 1: Escape HTML first to prevent XSS, but text is already plain
+    // Step 2: Highlight quotes FIRST (before inserting HTML tags with quotes)
+    // Only match Korean-style quotes: '' "" 「」 『』 and single quotes
+    var quotePattern = /([\u2018\u2019\u201C\u201D\u300C\u300D\u300E\u300F][^\u2018\u2019\u201C\u201D\u300C\u300D\u300E\u300F]+[\u2018\u2019\u201C\u201D\u300C\u300D\u300E\u300F])/g;
+    var result = text.replace(quotePattern, '<span class="hl-quote">$1</span>');
+    // Also match '...' single-quoted text (but NOT double quotes to avoid HTML attr conflict)
+    var singleQuotePattern = /('(?=[^\s])[^']{2,}[^'\s]')/g;
+    result = result.replace(singleQuotePattern, '<span class="hl-quote">$1</span>');
+    // Step 3: Highlight numbers with units AFTER quotes (safe because hl-quote uses Unicode chars)
     var numPattern = /(\d+[.,]?\d*\s*[%만원억천달러배건명개월년주일시간분초위개점])/g;
-    var result = text.replace(numPattern, '<span class="hl-num">$1</span>');
-    var quotePattern = /(['"\u2018\u2019\u201C\u201D][^'"\u2018\u2019\u201C\u201D]+['"\u2018\u2019\u201C\u201D])/g;
-    result = result.replace(quotePattern, '<span class="hl-quote">$1</span>');
+    result = result.replace(numPattern, '<span class="hl-num">$1</span>');
     return result;
   }
 
