@@ -681,7 +681,10 @@
       + '</div></div>'
       + '<p class="text-sm text-gray-400 leading-relaxed line-clamp-2 mb-2">' + escapeHtml(preview) + '</p>'
       + (revisedPreview ? '<div class="pt-2 border-t border-gray-800/30"><p class="text-sm text-amber-200/70 leading-relaxed line-clamp-2"><i class="fas fa-wand-magic-sparkles text-accent-500 mr-1.5"></i>' + escapeHtml(revisedPreview) + '</p></div>' : '')
-      + '<div class="mt-2 flex justify-end"><span class="text-xs text-accent-500/60 hover:text-accent-400 transition-colors"><i class="fas fa-arrow-up-right-from-square mr-1"></i>상세 보기</span></div>'
+      + '<div class="mt-2 flex items-center justify-between">'
+      + '<span class="text-[10px] px-2 py-0.5 rounded-lg ' + mi.bg + ' ' + mi.color + ' font-medium"><i class="fas ' + mi.icon + ' mr-1"></i>' + mi.name + '</span>'
+      + '<span class="text-xs text-accent-500/60 hover:text-accent-400 transition-colors"><i class="fas fa-arrow-up-right-from-square mr-1"></i>상세 보기</span>'
+      + '</div>'
       + '</div>';
   }
 
@@ -808,6 +811,15 @@
       + '<button onclick="window.copyModalRevised()" class="ml-auto text-xs text-accent-400 hover:text-accent-300 transition-colors"><i class="fas fa-copy mr-1"></i>복사</button></div>'
       + '<div class="revised-box" id="modalRevisedText">' + revisedHtml + '</div>'
       + '</div>';
+
+    // Show model info in modal if available
+    if (log.model_used) {
+      var mi = getModelInfo(log.model_used);
+      $('modalBody').innerHTML += '<div class="mt-4 pt-3 border-t border-gray-800/30 flex items-center gap-2">'
+        + '<span class="text-[11px] text-gray-500"><i class="fas fa-microchip mr-1"></i>분석 모델:</span>'
+        + '<span class="text-[11px] px-2 py-0.5 rounded-lg ' + mi.bg + ' ' + mi.color + ' font-medium"><i class="fas ' + mi.icon + ' mr-1"></i>' + mi.name + '</span>'
+        + '</div>';
+    }
 
     modal.classList.add('active');
   }

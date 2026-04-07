@@ -204,6 +204,16 @@ body { background: linear-gradient(135deg, #0a0f1e 0%, #111827 50%, #0f172a 100%
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
+/* ★ Model selector card */
+.model-card {
+  background: rgba(15, 23, 42, 0.5);
+  transition: all 0.3s ease;
+}
+.model-card:hover {
+  background: rgba(30, 41, 59, 0.6);
+  transform: translateY(-1px);
+}
+
 /* ★ Mobile touch optimization */
 @media (max-width: 640px) {
   .tab-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }

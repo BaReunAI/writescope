@@ -158,13 +158,22 @@ app.get('/api/demo', async (c) => {
   return c.json({ result: SAMPLE_DEMO_RESULT })
 })
 
+// --- Gemini 모델 목록 API ---
+app.get('/api/models', (c) => {
+  return c.json({
+    models: GEMINI_MODELS,
+    default: 'balanced'
+  })
+})
+
 // --- 핵심: 이중 글쓰기 분석 API ---
 app.post('/api/analyze', async (c) => {
-  const { text, category_id, user_id, tone } = await c.req.json<{
+  const { text, category_id, user_id, tone, model_tier } = await c.req.json<{
     text: string
     category_id?: number
     user_id: number
     tone?: string
+    model_tier?: string
   }>()
 
   if (!text || text.trim().length === 0) {
@@ -202,10 +211,14 @@ app.post('/api/analyze', async (c) => {
   const systemPrompt = buildSystemPrompt(categoryName, categoryTone, tone || '')
   const userPrompt = `다음 글을 '이중 글쓰기' 원칙에 따라 분석하고 교정해주세요:\n\n${text}`
 
-  try {
-    const aiResult = await callGemini(apiKey, systemPrompt, userPrompt)
+  // ★ 모델 티어 선택
+  const tier = model_tier || 'balanced'
+  const selectedModel = GEMINI_MODELS.find(m => m.tier === tier) || GEMINI_MODELS[1]
 
-    // ★ ai_details_json, human_details_json도 함께 저장
+  try {
+    const aiResult = await callGemini(apiKey, systemPrompt, userPrompt, selectedModel.id)
+
+    // ★ ai_details_json, human_details_json + 실제 모델명 저장
     await c.env.DB.prepare(
       `INSERT INTO writing_logs (user_id, category_id, original_text, revised_text, ai_score, human_score, feedback, checklist_json, model_used, tone, ai_details_json, human_details_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -218,13 +231,13 @@ app.post('/api/analyze', async (c) => {
       aiResult.analysis.human_score,
       JSON.stringify(aiResult.analysis.feedback),
       JSON.stringify(aiResult.checklist),
-      'gemini',
+      selectedModel.id,
       tone || '',
       JSON.stringify(aiResult.analysis.ai_details || {}),
       JSON.stringify(aiResult.analysis.human_details || {})
     ).run()
 
-    return c.json({ result: aiResult })
+    return c.json({ result: aiResult, model_used: selectedModel })
   } catch (e: any) {
     console.error('AI 분석 오류:', e)
     return c.json({ error: 'AI 분석 중 오류가 발생했습니다: ' + e.message }, 500)
@@ -379,8 +392,54 @@ ${userTone ? `## 사용자 지정 어조: ${userTone}\n` : ''}
 중요: 반드시 유효한 JSON만 출력하세요. 다른 텍스트 없이 JSON만 출력합니다.`
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
+// ==================== Gemini 모델 정의 ====================
+const GEMINI_MODELS = [
+  {
+    tier: 'fast',
+    id: 'gemini-2.0-flash-lite',
+    name: 'Flash Lite',
+    label: '빠른 분석',
+    description: '가장 빠르고 경제적. 간단한 글 교정에 적합',
+    speed: '~3초',
+    quality: '★★★☆☆',
+    cost: '최저',
+    costPerMToken: '$0.075',
+    icon: 'fa-bolt',
+    color: 'green',
+    badge: '경제적'
+  },
+  {
+    tier: 'balanced',
+    id: 'gemini-2.5-flash',
+    name: '2.5 Flash',
+    label: '균형 분석',
+    description: '속도와 품질의 최적 균형. 대부분의 글에 추천',
+    speed: '~5초',
+    quality: '★★★★☆',
+    cost: '보통',
+    costPerMToken: '$0.30',
+    icon: 'fa-balance-scale',
+    color: 'blue',
+    badge: '추천'
+  },
+  {
+    tier: 'premium',
+    id: 'gemini-2.5-pro',
+    name: '2.5 Pro',
+    label: '프리미엄 분석',
+    description: '최고 수준의 분석 품질. 중요한 글에 적합',
+    speed: '~10초',
+    quality: '★★★★★',
+    cost: '높음',
+    costPerMToken: '$1.25',
+    icon: 'fa-crown',
+    color: 'purple',
+    badge: '최고 품질'
+  }
+]
+
+async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string, modelId: string = 'gemini-2.5-flash') {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`
 
   const response = await fetch(url, {
     method: 'POST',

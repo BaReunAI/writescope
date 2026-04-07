@@ -149,8 +149,20 @@ AI 검색 노출(GEO)과 인간 공감을 동시에 만족하는
           </div>
         </div>
         <button onclick="analyzeText()" id="analyzeBtn" class="btn-primary w-full mt-4 py-3.5 text-base tracking-wide">
-          <i class="fas fa-wand-magic-sparkles mr-2"></i>이중 글쓰기 분석
+          <i class="fas fa-wand-magic-sparkles mr-2"></i>이중 글쓰기 분석 <span class="text-xs opacity-75 ml-1">(2.5 Flash)</span>
         </button>
+      </div>
+
+      <!-- ★ 모델 선택 카드 -->
+      <div class="glass-card rounded-2xl p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-white font-bold text-sm"><i class="fas fa-microchip mr-2 text-purple-400"></i>AI 모델 선택</h3>
+          <span class="text-[10px] text-gray-500 bg-navy-800/50 px-2.5 py-1 rounded-full"><i class="fas fa-info-circle mr-1"></i>품질 vs 속도</span>
+        </div>
+        <div id="modelSelector" class="grid grid-cols-1 gap-2">
+          <!-- 모델 카드가 JS로 렌더링됩니다 -->
+          <div class="shimmer h-24 rounded-xl"></div>
+        </div>
       </div>
     </div>
 
@@ -183,7 +195,7 @@ AI 검색 노출(GEO)과 인간 공감을 동시에 만족하는
             <i class="fas fa-wand-magic-sparkles text-accent-500 animate-pulse"></i>
           </div>
         </div>
-        <p class="text-gray-300 font-semibold mb-1">AI가 글을 분석하고 있습니다</p>
+        <p class="text-gray-300 font-semibold mb-1" id="loadingModelName">AI가 글을 분석하고 있습니다</p>
         <p class="text-gray-500 text-sm">성·기·대·변 요소를 검토 중...</p>
         <div class="flex gap-1 mt-4">
           <div class="w-2 h-2 bg-accent-500 rounded-full animate-bounce" style="animation-delay:0s"></div>
