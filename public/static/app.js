@@ -16,6 +16,8 @@
   var historyCache = [];
   var API = '';
   var isDemoMode = false;
+  var selectedModelTier = 'balanced';
+  var availableModels = [];
 
   // ==================== UTILITY ====================
   function $(id) { return document.getElementById(id); }
@@ -68,6 +70,7 @@
       $('mainApp').classList.remove('hidden');
       isDemoMode = false;
       loadCategories();
+      loadModels();
       checkApiKeyOnLogin();
     })
     .catch(function(e) { showToast('연결 오류: ' + e.message, 'error'); });
@@ -92,6 +95,7 @@
     $('displayNickname').textContent = '체험 모드';
 
     // Disable history/stats/settings tabs in demo mode
+    loadModels();
     showToast('샘플 데모 모드입니다. 로그인하면 모든 기능을 사용할 수 있습니다.', 'info');
 
     // Load demo data
@@ -154,6 +158,78 @@
     });
   }
 
+  // ==================== MODEL SELECTION ====================
+  function loadModels() {
+    fetch(API + '/api/models')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      availableModels = data.models || [];
+      selectedModelTier = data.default || 'balanced';
+      renderModelSelector();
+    })
+    .catch(function() {
+      availableModels = [
+        { tier: 'fast', name: 'Flash Lite', label: '빠른 분석', description: '가장 빠르고 경제적', speed: '~3초', quality: '★★★☆☆', cost: '최저', icon: 'fa-bolt', color: 'green', badge: '경제적' },
+        { tier: 'balanced', name: '2.5 Flash', label: '균형 분석', description: '속도와 품질의 최적 균형', speed: '~5초', quality: '★★★★☆', cost: '보통', icon: 'fa-balance-scale', color: 'blue', badge: '추천' },
+        { tier: 'premium', name: '2.5 Pro', label: '프리미엄 분석', description: '최고 수준의 분석 품질', speed: '~10초', quality: '★★★★★', cost: '높음', icon: 'fa-crown', color: 'purple', badge: '최고 품질' }
+      ];
+      selectedModelTier = 'balanced';
+      renderModelSelector();
+    });
+  }
+
+  function renderModelSelector() {
+    var container = $('modelSelector');
+    if (!container) return;
+
+    var colorMap = {
+      green: { bg: 'bg-green-500', bgLight: 'bg-green-500/10', border: 'border-green-500/40', text: 'text-green-400', ring: 'ring-green-500/30', glow: 'shadow-green-500/20' },
+      blue: { bg: 'bg-blue-500', bgLight: 'bg-blue-500/10', border: 'border-blue-500/40', text: 'text-blue-400', ring: 'ring-blue-500/30', glow: 'shadow-blue-500/20' },
+      purple: { bg: 'bg-purple-500', bgLight: 'bg-purple-500/10', border: 'border-purple-500/40', text: 'text-purple-400', ring: 'ring-purple-500/30', glow: 'shadow-purple-500/20' }
+    };
+
+    var html = availableModels.map(function(m) {
+      var c = colorMap[m.color] || colorMap.blue;
+      var isSelected = m.tier === selectedModelTier;
+      var selectedClass = isSelected
+        ? 'ring-2 ' + c.ring + ' ' + c.border + ' shadow-lg ' + c.glow
+        : 'border-gray-700/40 hover:border-gray-600/60';
+
+      return '<div class="model-card cursor-pointer rounded-xl p-3 border transition-all duration-300 ' + selectedClass + '" onclick="window.selectModel(\'' + m.tier + '\')" data-tier="' + m.tier + '">'
+        + '<div class="flex items-center justify-between mb-2">'
+        + '<div class="flex items-center gap-2">'
+        + '<div class="w-8 h-8 rounded-lg ' + c.bgLight + ' flex items-center justify-center"><i class="fas ' + m.icon + ' ' + c.text + ' text-sm"></i></div>'
+        + '<div><div class="text-sm font-bold text-white leading-tight">' + m.label + '</div>'
+        + '<div class="text-[10px] text-gray-500">' + m.name + '</div></div>'
+        + '</div>'
+        + '<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ' + c.bgLight + ' ' + c.text + '">' + m.badge + '</span>'
+        + '</div>'
+        + '<p class="text-[11px] text-gray-400 mb-2 leading-relaxed">' + m.description + '</p>'
+        + '<div class="flex items-center gap-3 text-[10px] text-gray-500">'
+        + '<span><i class="fas fa-clock mr-1"></i>' + m.speed + '</span>'
+        + '<span><i class="fas fa-star mr-1"></i>' + m.quality + '</span>'
+        + '<span><i class="fas fa-coins mr-1"></i>' + m.cost + '</span>'
+        + '</div>'
+        + (isSelected ? '<div class="mt-2 flex items-center gap-1.5 text-[10px] font-semibold ' + c.text + '"><i class="fas fa-check-circle"></i> 선택됨</div>' : '')
+        + '</div>';
+    }).join('');
+
+    container.innerHTML = html;
+  }
+
+  window.selectModel = function(tier) {
+    selectedModelTier = tier;
+    renderModelSelector();
+    var model = availableModels.find(function(m) { return m.tier === tier; });
+    if (model) {
+      showToast(model.label + ' (' + model.name + ') 선택됨', 'info');
+    }
+    var btn = $('analyzeBtn');
+    if (btn && model) {
+      btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>이중 글쓰기 분석 <span class="text-xs opacity-75 ml-1">(' + model.name + ')</span>';
+    }
+  };
+
   // ==================== TEXT INPUT ====================
   document.addEventListener('DOMContentLoaded', function() {
     var inputText = $('inputText');
@@ -183,12 +259,18 @@
     var categoryId = $('categorySelect').value;
     var tone = $('toneSelect').value;
     var btn = $('analyzeBtn');
+    var model = availableModels.find(function(m) { return m.tier === selectedModelTier; });
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>AI 분석 중...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>' + (model ? model.name : 'AI') + ' 분석 중...';
     $('resultPlaceholder').classList.add('hidden');
     $('resultContent').classList.add('hidden');
     $('resultLoading').classList.remove('hidden');
+
+    var loadingMsg = $('loadingModelName');
+    if (loadingMsg && model) {
+      loadingMsg.textContent = model.name + '이 글을 분석하고 있습니다';
+    }
 
     fetch(API + '/api/analyze', {
       method: 'POST',
@@ -197,7 +279,8 @@
         text: text,
         category_id: categoryId ? parseInt(categoryId) : null,
         user_id: currentUser.id,
-        tone: tone || null
+        tone: tone || null,
+        model_tier: selectedModelTier
       })
     })
     .then(function(r) { return r.json(); })
@@ -209,7 +292,12 @@
         return;
       }
       displayResult(data.result);
-      showToast('분석이 완료되었습니다!', 'success');
+      var usedModel = data.model_used;
+      if (usedModel) {
+        showToast(usedModel.name + ' 분석 완료!', 'success');
+      } else {
+        showToast('분석이 완료되었습니다!', 'success');
+      }
     })
     .catch(function(e) {
       showToast('분석 오류: ' + e.message, 'error');
@@ -217,7 +305,8 @@
     })
     .finally(function() {
       btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>이중 글쓰기 분석';
+      var currentModel = availableModels.find(function(m) { return m.tier === selectedModelTier; });
+      btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>이중 글쓰기 분석' + (currentModel ? ' <span class="text-xs opacity-75 ml-1">(' + currentModel.name + ')</span>' : '');
       $('resultLoading').classList.add('hidden');
     });
   };
